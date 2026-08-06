@@ -1,27 +1,5 @@
 [
   {
-    "id": "1f278189ed243e4bd0",
-    "title": "{{x.docSubtitle|trimHtml}}",
-    "source_id": "nfra_policy",
-    "source_name": "国家金融监督管理总局",
-    "published_at": null,
-    "discovered_at": "2026-08-06T09:36:46+00:00",
-    "updated_at": "2026-08-06T09:36:46+00:00",
-    "url": "https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html?docId=%7B%7Bx.docId%7D%7D&itemId=%7B%7Bx.itemId%7D%7D&generaltype=0",
-    "document_type": "政策信息",
-    "categories": [
-      "银行保险数字化"
-    ],
-    "keywords": [
-      "银行业"
-    ],
-    "relevance_score": 2,
-    "importance": 2,
-    "summary": "无障碍浏览 政府信息公开 发布时间：{{data.publishDate|dateFormat2}} 来源：{{data.docSource | branchFilter}} 下载 打印 微博 微信 更多 QQ空间 QQ 索 引 号： {{data.indexNo}} 主题分类： {{data.interviewTypeName}} 办文部门： {{data.agencyTypeName}} 发文日期： {{data.builddate",
-    "impact": "可能影响银行保险机构的信息科技治理、数字化建设、外包管理或业务流程。",
-    "analysis_notice": "以上摘要与影响提示由规则自动生成，不代表发布机构观点；请以官方原文为准。"
-  },
-  {
     "id": "8c4552d923a6d782cb",
     "title": "关于对派拓公司在华销售产品启动网络安全审查的公告",
     "source_id": "cac_policy",

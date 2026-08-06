@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from typing import Any, Iterable
-from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, unquote, urlencode, urljoin, urlsplit, urlunsplit
 
 import requests
 import yaml
@@ -32,6 +32,10 @@ DATE_PATTERNS = [
     re.compile(r"(20\d{2})(\d{2})(\d{2})"),
 ]
 TRACKING_PARAMS = {"utm_source", "utm_medium", "utm_campaign", "spm", "from", "isapp"}
+TEMPLATE_EXPRESSION_RE = re.compile(
+    r"\{\{.*?\}\}|\{%.*?%\}|\b(?:x|data)\.[A-Za-z_$][\w$]*",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 @dataclass
@@ -70,6 +74,12 @@ def write_json(path: Path, value: Any) -> None:
 
 def clean_text(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
+
+
+def contains_template_expression(value: str) -> bool:
+    """Return whether text contains an unresolved front-end template expression."""
+    normalized = unquote(html.unescape(value or ""))
+    return "{{" in normalized or "}}" in normalized or bool(TEMPLATE_EXPRESSION_RE.search(normalized))
 
 
 def canonical_url(url: str) -> str:
@@ -139,9 +149,15 @@ def discover_candidates(session: requests.Session, source: dict[str, Any], rules
         soup = BeautifulSoup(page, "html.parser")
         for tag in soup.find_all("a", href=True):
             title = clean_text(tag.get_text(" ", strip=True) or tag.get("title", ""))
-            if len(title) < 7 or title in {"更多", "详情", "查看详情", "下一页", "上一页"}:
+            raw_href = tag.get("href", "")
+            title_is_template = contains_template_expression(title)
+            if (
+                (len(title) < 7 and not title_is_template)
+                or title in {"更多", "详情", "查看详情", "下一页", "上一页"}
+                or contains_template_expression(raw_href)
+            ):
                 continue
-            url = canonical_url(urljoin(final_url, tag["href"]))
+            url = canonical_url(urljoin(final_url, raw_href))
             if not url.startswith(("http://", "https://")):
                 continue
             if not domain_allowed(url, source.get("allowed_domains", [])):
@@ -200,7 +216,8 @@ def parse_article(session: requests.Session, candidate: Candidate, rules: dict[s
         node.decompose()
 
     h1 = soup.find("h1")
-    title = clean_text(h1.get_text(" ", strip=True)) if h1 else candidate.title
+    h1_title = clean_text(h1.get_text(" ", strip=True)) if h1 else ""
+    title = h1_title if h1_title and not contains_template_expression(h1_title) else candidate.title
     page_text = clean_text(soup.get_text(" ", strip=True))
     published_at = extract_date(page_text[:2500], final_url) or candidate.list_date
     content = largest_content_block(soup)
@@ -284,7 +301,14 @@ def impact_text(categories: list[str], rules: dict[str, Any]) -> str:
 
 
 def process_candidate(session: requests.Session, candidate: Candidate, rules: dict[str, Any]) -> dict[str, Any] | None:
+    if contains_template_expression(candidate.url):
+        return None
     article = parse_article(session, candidate, rules)
+    if any(
+        contains_template_expression(article.get(field, ""))
+        for field in ("title", "url", "content")
+    ):
+        return None
     combined = " ".join([article["title"], article.get("content", "")[:4000]])
     score, hits = relevance_score(combined, rules)
     if score < int(rules.get("minimum_relevance_score", 2)):
@@ -317,9 +341,11 @@ def policy_sort_key(item: dict[str, Any]) -> tuple[str, str]:
 
 
 def merge_policies(existing: list[dict[str, Any]], incoming: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    index = {item["id"]: item for item in existing}
-    url_index = {canonical_url(item["url"]): item["id"] for item in existing if item.get("url")}
-    for item in incoming:
+    valid_existing = [item for item in existing if policy_is_valid(item)]
+    valid_incoming = [item for item in incoming if policy_is_valid(item)]
+    index = {item["id"]: item for item in valid_existing}
+    url_index = {canonical_url(item["url"]): item["id"] for item in valid_existing if item.get("url")}
+    for item in valid_incoming:
         existing_id = url_index.get(canonical_url(item["url"]))
         if existing_id and existing_id in index:
             old_discovered = index[existing_id].get("discovered_at")
@@ -327,6 +353,14 @@ def merge_policies(existing: list[dict[str, Any]], incoming: list[dict[str, Any]
             item["discovered_at"] = old_discovered or item["discovered_at"]
         index[item["id"]] = item
     return sorted(index.values(), key=policy_sort_key, reverse=True)
+
+
+def policy_is_valid(item: dict[str, Any]) -> bool:
+    """Reject persisted policies containing unresolved template data."""
+    return bool(item.get("title") and item.get("url")) and not any(
+        contains_template_expression(str(item.get(field, "")))
+        for field in ("title", "summary", "url")
+    )
 
 
 def build_feed(policies: list[dict[str, Any]], site_title: str = "金策雷达") -> str:
