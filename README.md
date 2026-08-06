@@ -80,3 +80,6 @@ python -m src.finpolicy.radar --build-only
 3. 增加政策修订和失效检测；
 4. 增加飞书或企业微信Webhook；
 5. 可选大模型深度分析。
+
+This project is currently under development. Source code is publicly available for transparency, but no license is granted for reuse.
+本项目处于开发阶段，代码公开用于展示和交流，未经授权不得复制、商业使用或二次发布。
