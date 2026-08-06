@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="自动监测中国官方金融科技政策，提供基础分类、摘要和官方原文链接。">
+  <title>金策雷达｜金融科技政策情报站</title>
+  <link rel="alternate" type="application/rss+xml" title="金策雷达 RSS" href="feed.xml">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div>
+        <div class="eyebrow">FINPOLICY RADAR</div>
+        <h1>金策雷达</h1>
+        <p>金融科技政策情报站：自动发现、基础分类、快速判断，所有条目直达官方原文。</p>
+      </div>
+      <a class="rss" href="feed.xml">订阅 RSS</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="stats" aria-label="统计概览">
+      <div><strong>{{ today_count }}</strong><span>今日发布</span></div>
+      <div><strong>{{ total_count }}</strong><span>累计收录</span></div>
+      <div><strong>{{ high_count }}</strong><span>高重要性</span></div>
+      <div><strong>{{ statuses|length }}</strong><span>监控来源</span></div>
+    </section>
+
+    <section class="toolbar">
+      <label class="search"><span>搜索</span><input id="searchInput" type="search" placeholder="标题、关键词、摘要"></label>
+      <label><span>分类</span><select id="categoryFilter"><option value="">全部分类</option>{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></label>
+      <label><span>来源</span><select id="sourceFilter"><option value="">全部来源</option>{% for s in source_names %}<option>{{ s }}</option>{% endfor %}</select></label>
+      <label><span>重要性</span><select id="importanceFilter"><option value="0">全部</option><option value="4">四星以上</option><option value="5">仅五星</option></select></label>
+    </section>
+
+    <div class="meta-line">
+      <span id="resultCount">显示 {{ total_count }} 条</span>
+      <span>网页生成时间：{{ generated_at }}</span>
+    </div>
+
+    <section id="policyList" class="policy-list">
+      {% for p in policies %}
+      <article class="policy-card" data-title="{{ p.title }} {{ p.summary }} {{ p.keywords|join(' ') }}" data-category="{{ p.categories|join('|') }}" data-source="{{ p.source_name }}" data-importance="{{ p.importance }}">
+        <div class="card-top">
+          <div class="badges">
+            <span class="source-badge">{{ p.source_name }}</span>
+            <span class="type-badge">{{ p.document_type }}</span>
+            {% if p.importance >= 4 %}<span class="hot-badge">重点</span>{% endif %}
+          </div>
+          <div class="stars" title="重要性 {{ p.importance }}/5">{{ '★' * p.importance }}{{ '☆' * (5-p.importance) }}</div>
+        </div>
+        <h2><a href="{{ p.url }}" target="_blank" rel="noopener noreferrer">{{ p.title }}</a></h2>
+        <div class="date-row"><span>发布日期：{{ p.published_at or '未识别' }}</span><span>发现时间：{{ p.discovered_at[:10] }}</span></div>
+        <p class="summary">{{ p.summary }}</p>
+        <div class="impact"><strong>可能影响：</strong>{{ p.impact }}</div>
+        <div class="tags">{% for c in p.categories %}<span>{{ c }}</span>{% endfor %}{% for k in p.keywords[:5] %}<span class="keyword">{{ k }}</span>{% endfor %}</div>
+        <div class="card-bottom">
+          <small>{{ p.analysis_notice }}</small>
+          <a class="original-link" href="{{ p.url }}" target="_blank" rel="noopener noreferrer">查看官方原文 →</a>
+        </div>
+      </article>
+      {% endfor %}
+    </section>
+
+    <div id="emptyState" class="empty" hidden>没有符合当前筛选条件的政策。</div>
+
+    <details class="status-panel">
+      <summary>采集运行状态</summary>
+      <div class="status-grid">
+        {% for s in statuses %}
+        <div class="status-item {{ 'ok' if s.ok else 'failed' }}">
+          <strong>{{ s.source_name }}</strong>
+          <span>{{ '正常' if s.ok else '失败' }}</span>
+          <small>候选 {{ s.candidates }}｜新增 {{ s.accepted }}｜已知 {{ s.skipped_known or 0 }}｜{{ s.duration_seconds }} 秒</small>
+          {% if s.error %}<small>{{ s.error }}</small>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+  </main>
+
+  <footer>
+    <p>本站为非官方政策聚合工具。摘要与影响提示由规则自动生成，请始终以发布机构原文为准。</p>
+  </footer>
+  <script src="assets/app.js"></script>
+</body>
+</html>

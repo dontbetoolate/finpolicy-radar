@@ -1,0 +1,52 @@
+sources:
+  - id: pbc_news
+    name: 中国人民银行
+    start_urls:
+      - https://www.pbc.gov.cn/goutongjiaoliu/113456/113469/index.html
+      - https://www.pbc.gov.cn/tiaofasi/144941/144957/index.html
+    allowed_domains: [www.pbc.gov.cn]
+    include_url_patterns:
+      - /goutongjiaoliu/113456/113469/
+      - /tiaofasi/144941/144957/
+      - /zhengwugongkai/
+    exclude_url_patterns:
+      - /attachDir/
+      - /fileDir/
+    source_weight: 5
+
+  - id: nfra_policy
+    name: 国家金融监督管理总局
+    start_urls:
+      - https://www.nfra.gov.cn/cn/view/pages/zhengwuxinxi/zhengfuxinxi.html
+      - https://www.nfra.gov.cn/cn/view/pages/ItemList.html?itemId=926&itemName=%E6%94%BF%E7%AD%96%E6%B3%95%E8%A7%84&itemPId=923&itemUrl=ItemListRightMore.html
+    allowed_domains: [www.nfra.gov.cn]
+    include_url_patterns:
+      - /cn/view/pages/governmentDetail.html
+      - /cn/view/pages/ItemList
+    exclude_url_patterns: []
+    source_weight: 5
+
+  - id: gov_policy
+    name: 中国政府网
+    start_urls:
+      - https://sousuo.www.gov.cn/zcwjk/policyDocumentLibrary
+    allowed_domains: [www.gov.cn, sousuo.www.gov.cn]
+    include_url_patterns:
+      - /zhengce/
+      - /zcwjk/
+    exclude_url_patterns:
+      - /hudong/
+    source_weight: 5
+
+  - id: cac_policy
+    name: 国家互联网信息办公室
+    start_urls:
+      - https://www.cac.gov.cn/wxzw/zcfg/A093703index_1.htm
+      - https://www.cac.gov.cn/wxzw/A0937index_1.htm
+    allowed_domains: [www.cac.gov.cn]
+    include_url_patterns:
+      - /20
+      - /wxzw/zcfg/
+    exclude_url_patterns:
+      - index_
+    source_weight: 4

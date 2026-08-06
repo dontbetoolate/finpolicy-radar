@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="自动监测中国官方金融科技政策，提供基础分类、摘要和官方原文链接。">
+  <title>金策雷达｜金融科技政策情报站</title>
+  <link rel="alternate" type="application/rss+xml" title="金策雷达 RSS" href="feed.xml">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div>
+        <div class="eyebrow">FINPOLICY RADAR</div>
+        <h1>金策雷达</h1>
+        <p>金融科技政策情报站：自动发现、基础分类、快速判断，所有条目直达官方原文。</p>
+      </div>
+      <a class="rss" href="feed.xml">订阅 RSS</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="stats" aria-label="统计概览">
+      <div><strong>0</strong><span>今日发布</span></div>
+      <div><strong>0</strong><span>累计收录</span></div>
+      <div><strong>0</strong><span>高重要性</span></div>
+      <div><strong>0</strong><span>监控来源</span></div>
+    </section>
+
+    <section class="toolbar">
+      <label class="search"><span>搜索</span><input id="searchInput" type="search" placeholder="标题、关键词、摘要"></label>
+      <label><span>分类</span><select id="categoryFilter"><option value="">全部分类</option></select></label>
+      <label><span>来源</span><select id="sourceFilter"><option value="">全部来源</option></select></label>
+      <label><span>重要性</span><select id="importanceFilter"><option value="0">全部</option><option value="4">四星以上</option><option value="5">仅五星</option></select></label>
+    </section>
+
+    <div class="meta-line">
+      <span id="resultCount">显示 0 条</span>
+      <span>网页生成时间：2026-08-06T08:20:43+00:00</span>
+    </div>
+
+    <section id="policyList" class="policy-list">
+      
+    </section>
+
+    <div id="emptyState" class="empty" hidden>没有符合当前筛选条件的政策。</div>
+
+    <details class="status-panel">
+      <summary>采集运行状态</summary>
+      <div class="status-grid">
+        
+      </div>
+    </details>
+  </main>
+
+  <footer>
+    <p>本站为非官方政策聚合工具。摘要与影响提示由规则自动生成，请始终以发布机构原文为准。</p>
+  </footer>
+  <script src="assets/app.js"></script>
+</body>
+</html>
