@@ -2,44 +2,45 @@
   {
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
-    "checked_at": "2026-08-08T08:59:06+00:00",
+    "checked_at": "2026-08-08T09:53:42+00:00",
     "ok": true,
     "candidates": 35,
     "accepted": 0,
     "skipped_known": 26,
     "article_errors": 0,
-    "duration_seconds": 10.21
+    "duration_seconds": 9.43
   },
   {
     "source_id": "nfra_policy",
     "source_name": "国家金融监督管理总局",
-    "checked_at": "2026-08-08T08:59:17+00:00",
-    "ok": false,
-    "error": "403 Client Error: Forbidden for url: https://www.nfra.gov.cn/cn/view/pages/zhengwuxinxi/zhengfuxinxi.html",
-    "candidates": 0,
-    "accepted": 0,
-    "duration_seconds": 0.59
-  },
-  {
-    "source_id": "gov_policy",
-    "source_name": "中国政府网",
-    "checked_at": "2026-08-08T08:59:17+00:00",
+    "checked_at": "2026-08-08T09:53:52+00:00",
     "ok": true,
     "candidates": 0,
     "accepted": 0,
     "skipped_known": 0,
     "article_errors": 0,
-    "duration_seconds": 0.82
+    "duration_seconds": 0.91
+  },
+  {
+    "source_id": "gov_policy",
+    "source_name": "中国政府网",
+    "checked_at": "2026-08-08T09:53:53+00:00",
+    "ok": true,
+    "candidates": 0,
+    "accepted": 0,
+    "skipped_known": 0,
+    "article_errors": 0,
+    "duration_seconds": 1.19
   },
   {
     "source_id": "cac_policy",
     "source_name": "国家互联网信息办公室",
-    "checked_at": "2026-08-08T08:59:18+00:00",
+    "checked_at": "2026-08-08T09:53:54+00:00",
     "ok": true,
     "candidates": 40,
     "accepted": 0,
     "skipped_known": 34,
     "article_errors": 0,
-    "duration_seconds": 6.19
+    "duration_seconds": 6.66
   }
 ]
