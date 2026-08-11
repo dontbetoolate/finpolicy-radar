@@ -1525,14 +1525,14 @@
     "analysis_notice": "以上摘要与影响提示由规则自动生成，不代表发布机构观点；请以官方原文为准。"
   },
   {
-    "id": "eab1ebf57aa1b96083",
+    "id": "26d2b93538a7b30ffc",
     "title": "中国人民银行 中国证监会令〔2025〕第7号（金融基础设施监督管理办法）",
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
     "published_at": "2025-08-01",
-    "discovered_at": "2026-08-11T21:04:18+00:00",
-    "updated_at": "2026-08-11T21:04:18+00:00",
-    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/2025120610050660916/index.html",
+    "discovered_at": "2026-08-11T22:04:36+00:00",
+    "updated_at": "2026-08-11T22:04:36+00:00",
+    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/b71de79692a649a6863b7ba9c9f681b4/index.html",
     "document_type": "法律法规",
     "categories": [
       "银行保险数字化",
