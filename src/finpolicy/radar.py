@@ -36,6 +36,17 @@ TEMPLATE_EXPRESSION_RE = re.compile(
     r"\{\{.*?\}\}|\{%.*?%\}|\b(?:x|data)\.[A-Za-z_$][\w$]*",
     re.IGNORECASE | re.DOTALL,
 )
+NAVIGATION_MARKERS = (
+    "术语表",
+    "网站地图",
+    "无障碍浏览",
+    "English Version",
+    "新闻发布",
+    "在线申报",
+    "下载中心",
+    "打印本页",
+    "关闭窗口",
+)
 
 
 @dataclass
@@ -370,30 +381,45 @@ def discover_candidates(session: requests.Session, source: dict[str, Any], rules
     return discover_html_candidates(session, source, rules)
 
 
+def has_navigation_noise(value: str) -> bool:
+    """Detect text blocks dominated by common government-site navigation controls."""
+    lower = clean_text(value).lower()
+    return sum(marker.lower() in lower for marker in NAVIGATION_MARKERS) >= 4
+
+
+def clean_content_block(node: Any, minimum_chars: int) -> str:
+    text = clean_text(node.get_text(" ", strip=True))
+    if len(text) < minimum_chars or has_navigation_noise(text):
+        return ""
+    links = node.find_all("a")
+    link_chars = sum(len(clean_text(link.get_text(" ", strip=True))) for link in links)
+    if len(links) >= 3 and link_chars / max(len(text), 1) > 0.35:
+        return ""
+    return text
+
+
 def largest_content_block(soup: BeautifulSoup) -> str:
     selectors = [
         "article",
         "main",
-        ".article",
-        ".article-content",
-        ".content",
-        ".TRS_Editor",
         "#UCAP-CONTENT",
+        ".TRS_Editor",
+        "#zoom",
+        ".zoom1",
+        "td.content",
+        ".article-content",
+        ".article",
         ".pages_content",
         ".detail",
+        ".content",
     ]
-    blocks = []
     for selector in selectors:
-        for node in soup.select(selector):
-            text = clean_text(node.get_text(" ", strip=True))
-            if len(text) >= 80:
-                blocks.append(text)
-    if not blocks:
-        for node in soup.find_all(["div", "section"]):
-            text = clean_text(node.get_text(" ", strip=True))
-            if 100 <= len(text) <= 50000:
-                blocks.append(text)
-    return max(blocks, key=len, default="")
+        blocks = [clean_content_block(node, 40) for node in soup.select(selector)]
+        blocks = [text for text in blocks if text]
+        if blocks:
+            return max(blocks, key=len)
+    blocks = [clean_content_block(node, 60) for node in soup.find_all(["div", "section", "td"])]
+    return max((text for text in blocks if text), key=len, default="")
 
 
 def parse_article(session: requests.Session, candidate: Candidate, rules: dict[str, Any]) -> dict[str, Any]:
@@ -464,14 +490,44 @@ def classify(text: str, rules: dict[str, Any]) -> list[str]:
 
 
 def document_type(text: str, rules: dict[str, Any]) -> str:
+    for kind in ("征求意见", "政策解读"):
+        if any(keyword in text for keyword in rules.get("policy_type_keywords", {}).get(kind, [])):
+            return kind
     for kind, keywords in rules.get("policy_type_keywords", {}).items():
         if any(keyword in text for keyword in keywords):
             return kind
     return "政策信息"
 
 
+def is_policy_material(
+    title: str,
+    content: str,
+    rules: dict[str, Any],
+    minimum_chars: int | None = None,
+) -> bool:
+    """Require policy-document signals and reject obvious news or one-off actions."""
+    title = clean_text(title)
+    content = clean_text(content)
+    required_chars = int(rules.get("minimum_article_chars", 40)) if minimum_chars is None else minimum_chars
+    if len(content) < required_chars or has_navigation_noise(content):
+        return False
+    if any(re.search(pattern, title) for pattern in rules.get("excluded_title_patterns", [])):
+        return False
+    combined = f"{title} {content[:1200]}"
+    if any(re.search(pattern, combined) for pattern in rules.get("excluded_content_patterns", [])):
+        return False
+    return any(signal in title for signal in rules.get("policy_signal_keywords", []))
+
+
 def concise_summary(content: str, title: str) -> str:
     text = clean_text(content)
+    text = re.sub(rf"^{re.escape(clean_text(title))}\s*", "", text)
+    text = re.sub(
+        r"^20\d{2}年\d{1,2}月\d{1,2}日(?:\s+\d{1,2}:\d{2})?\s+来源：.*?【纠错】\s*",
+        "",
+        text,
+    )
+    text = re.sub(r"【(?:打印|纠错)】|打印本页|关闭窗口", "", text)
     text = re.sub(r"^(当前位置|首页)[^。]{0,100}", "", text)
     sentences = re.split(r"(?<=[。！？；])", text)
     selected = []
@@ -491,20 +547,25 @@ def concise_summary(content: str, title: str) -> str:
 
 
 def importance(source_weight: int, score: int, dtype: str, title: str) -> int:
-    value = source_weight + min(score, 12)
-    if dtype in {"法律法规", "规范性文件", "征求意见"}:
+    value = 1 if source_weight >= 5 else 0
+    if score >= 15:
+        value += 4
+    elif score >= 10:
         value += 3
-    if any(word in title for word in ["办法", "规定", "指导意见", "条例", "通知", "公告", "规划"]):
+    elif score >= 6:
         value += 2
-    if value >= 17:
-        return 5
-    if value >= 13:
-        return 4
-    if value >= 9:
-        return 3
-    if value >= 6:
-        return 2
-    return 1
+    elif score >= 3:
+        value += 1
+    if dtype in {"法律法规", "征求意见"}:
+        value += 2
+    elif dtype == "规范性文件":
+        value += 1
+    if any(word in title for word in ["办法", "规定", "指导意见", "条例", "通知", "规划"]):
+        value += 1
+    stars = 5 if value >= 8 else 4 if value >= 5 else 3 if value >= 3 else 2 if value >= 2 else 1
+    if dtype in {"政策解读", "监管动态"}:
+        stars = min(stars, 3 if dtype == "政策解读" else 2)
+    return stars
 
 
 def impact_text(categories: list[str], rules: dict[str, Any]) -> str:
@@ -521,6 +582,8 @@ def process_candidate(session: requests.Session, candidate: Candidate, rules: di
         contains_template_expression(article.get(field, ""))
         for field in ("title", "url", "content")
     ):
+        return None
+    if not is_policy_material(article["title"], article.get("content", ""), rules):
         return None
     combined = " ".join([article["title"], article.get("content", "")[:4000]])
     score, hits = relevance_score(combined, rules)
@@ -574,6 +637,30 @@ def policy_is_valid(item: dict[str, Any]) -> bool:
         contains_template_expression(str(item.get(field, "")))
         for field in ("title", "summary", "url")
     )
+
+
+def normalize_existing_policies(items: list[dict[str, Any]], rules: dict[str, Any]) -> list[dict[str, Any]]:
+    """Remove persisted false positives and apply the current importance scale."""
+    normalized = []
+    for original in items:
+        if not policy_is_valid(original):
+            continue
+        item = dict(original)
+        if not is_policy_material(item.get("title", ""), item.get("summary", ""), rules, minimum_chars=12):
+            continue
+        item["summary"] = concise_summary(item.get("summary", ""), item.get("title", ""))
+        item["document_type"] = document_type(
+            f"{item.get('title', '')} {item.get('summary', '')[:1200]}",
+            rules,
+        )
+        item["importance"] = importance(
+            int(next((source.get("source_weight", 3) for source in rules.get("_sources", []) if source.get("id") == item.get("source_id")), 3)),
+            int(item.get("relevance_score", 0)),
+            item["document_type"],
+            item.get("title", ""),
+        )
+        normalized.append(item)
+    return normalized
 
 
 def build_feed(policies: list[dict[str, Any]], site_title: str = "金策雷达") -> str:
@@ -630,7 +717,8 @@ def run(crawl: bool = True) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     source_config = load_yaml(ROOT / "config" / "sources.yaml")
     rules = load_yaml(ROOT / "config" / "rules.yaml")
-    existing = load_json(DATA_DIR / "policies.json", [])
+    rules["_sources"] = source_config.get("sources", [])
+    existing = normalize_existing_policies(load_json(DATA_DIR / "policies.json", []), rules)
     session = make_session()
     incoming: list[dict[str, Any]] = []
     existing_urls = {canonical_url(item.get("url", "")) for item in existing if item.get("url")}
