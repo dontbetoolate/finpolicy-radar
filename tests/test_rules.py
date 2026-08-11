@@ -477,3 +477,31 @@ def test_merge_policies_removes_persisted_template_record_and_keeps_official_url
 
     assert merge_policies([bad, good], []) == [good]
     assert merge_policies([bad], [good])[0]["url"] == good["url"]
+
+
+def test_merge_policies_removes_exact_title_duplicate_from_same_source():
+    older = {
+        "id": "older",
+        "title": "金融基础设施监督管理办法",
+        "source_id": "pbc_news",
+        "url": "https://www.pbc.gov.cn/policy/older.html",
+        "summary": "正式政策摘要",
+        "published_at": "2025-08-01",
+        "discovered_at": "2026-08-06T09:36:36+00:00",
+    }
+    newer = {
+        **older,
+        "id": "newer",
+        "url": "https://www.pbc.gov.cn/policy/newer.html",
+        "discovered_at": "2026-08-06T09:36:37+00:00",
+    }
+    another_source = {
+        **older,
+        "id": "gov-copy",
+        "source_id": "gov_policy",
+        "url": "https://www.gov.cn/policy/copy.html",
+    }
+
+    merged = merge_policies([older, newer, another_source], [])
+
+    assert [item["id"] for item in merged] == ["newer", "gov-copy"]
