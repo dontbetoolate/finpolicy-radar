@@ -17,6 +17,10 @@ def rules():
     return {
         "relevance_keywords": {"人工智能": 5, "金融机构": 2},
         "categories": {"AI与大模型": ["人工智能", "大模型"]},
+        "policy_signal_keywords": ["通知", "规定", "办法", "公告"],
+        "excluded_title_patterns": ["会见", "出席", "召开.*会议"],
+        "excluded_content_patterns": ["决定授权.{0,80}担任.{0,40}清算行"],
+        "minimum_article_chars": 40,
     }
 
 
@@ -318,6 +322,141 @@ def test_process_candidate_uses_real_detail_title_over_template_list_title():
     assert item is not None
     assert item["title"] == "关于金融机构人工智能应用的通知"
     assert item["url"] == candidate.url
+
+
+def test_pbc_short_content_block_beats_navigation_text():
+    page = """
+    <html><body>
+      <div>术语表 网站地图 无障碍浏览 English Version 信息公开 新闻发布 法律法规
+      货币政策 支付体系 金融科技 征信管理 反洗钱 在线申报 下载中心</div>
+      <h2>中国人民银行公告〔2026〕第20号</h2>
+      <td class="content"><div id="zoom">根据《中国人民银行与德意志联邦银行备忘录》，中国人民银行决定授权德意志银行股份有限公司担任法兰克福人民币清算行。 中国人民银行 2026年8月7日</div></td>
+    </body></html>
+    """
+    candidate = Candidate(
+        "中国人民银行公告〔2026〕第20号",
+        "https://www.pbc.gov.cn/goutongjiaoliu/example/index.html",
+        "pbc_news",
+        "中国人民银行",
+        5,
+    )
+
+    article = parse_article(FakeSession(page), candidate, {})
+
+    assert article["content"].startswith("根据《中国人民银行与德意志联邦银行备忘录》")
+    assert "网站地图" not in article["content"]
+
+
+def test_process_candidate_rejects_one_off_clearing_bank_authorization():
+    candidate = Candidate(
+        "中国人民银行公告〔2026〕第20号",
+        "https://www.pbc.gov.cn/goutongjiaoliu/example/index.html",
+        "pbc_news",
+        "中国人民银行",
+        5,
+    )
+    page = """
+    <html><body><td class="content"><div id="zoom">
+      根据《中国人民银行与德意志联邦银行备忘录》，中国人民银行决定授权德意志银行股份有限公司担任法兰克福人民币清算行。
+      中国人民银行 2026年8月7日
+    </div></td></body></html>
+    """
+
+    assert process_candidate(FakeSession(page), candidate, rules()) is None
+
+
+def test_process_candidate_rejects_meeting_news_even_with_relevant_terms():
+    candidate = Candidate(
+        "中国人民银行召开金融科技工作会议",
+        "https://www.pbc.gov.cn/news/example.html",
+        "pbc_news",
+        "中国人民银行",
+        5,
+    )
+    page = """
+    <html><body><article>会议研究部署金融机构人工智能应用管理工作，并介绍后续通知和规划。这里补足正文长度以模拟真实新闻稿。</article></body></html>
+    """
+
+    assert process_candidate(FakeSession(page), candidate, rules()) is None
+
+
+def test_process_candidate_rejects_commentary_when_policy_signal_only_appears_in_body():
+    candidate = Candidate(
+        "某负责人：推动行业高质量发展",
+        "https://www.cac.gov.cn/news/example.html",
+        "cac_policy",
+        "国家互联网信息办公室",
+        4,
+    )
+    page = """
+    <html><body><article>文章介绍相关管理规定和工作办法，并讨论金融机构人工智能治理方向。这是署名文章而不是政策文件。</article></body></html>
+    """
+
+    assert process_candidate(FakeSession(page), candidate, rules()) is None
+
+
+def test_summary_removes_repeated_title_date_source_and_print_controls():
+    title = "个人信息保护规定"
+    content = (
+        "个人信息保护规定 2026年08月07日 16:00 来源： 中国网信网 【打印】 【纠错】 "
+        "为规范个人信息处理活动，保护个人信息权益，有关部门制定本规定并明确适用范围。"
+    )
+
+    summary = radar.concise_summary(content, title)
+
+    assert summary.startswith("为规范个人信息处理活动")
+    assert "来源" not in summary
+    assert "打印" not in summary
+
+
+def test_importance_reserves_five_stars_for_high_relevance_formal_policy():
+    assert radar.importance(5, 3, "规范性文件", "中国人民银行公告〔2026〕第20号") == 3
+    assert radar.importance(5, 16, "法律法规", "金融机构数据安全管理办法") == 5
+    assert radar.importance(5, 20, "政策解读", "金融机构数据安全管理办法答记者问") == 3
+    assert radar.importance(5, 20, "监管动态", "金融科技工作会议") == 2
+
+
+def test_document_type_prioritizes_policy_interpretation_over_body_legal_terms():
+    configured_rules = {
+        "policy_type_keywords": {
+            "法律法规": ["法律", "规定"],
+            "政策解读": ["政策解读", "专家解读"],
+        }
+    }
+
+    assert radar.document_type("专家解读｜构建个人信息保护法律制度", configured_rules) == "政策解读"
+
+
+def test_normalize_existing_policies_removes_navigation_pollution_and_recalculates_importance():
+    polluted = {
+        "id": "polluted",
+        "title": "中国人民银行公告〔2026〕第20号",
+        "url": "https://www.pbc.gov.cn/example.html",
+        "summary": "术语表 网站地图 无障碍浏览 English Version 新闻发布 在线申报 下载中心",
+        "source_id": "pbc_news",
+        "document_type": "规范性文件",
+        "relevance_score": 14,
+        "importance": 5,
+    }
+    valid = {
+        "id": "valid",
+        "title": "金融机构数据安全管理办法",
+        "url": "https://www.nfra.gov.cn/example.html",
+        "summary": "本办法规定金融机构应当建立数据安全管理制度并落实个人信息保护责任。",
+        "source_id": "nfra_policy",
+        "document_type": "法律法规",
+        "relevance_score": 16,
+        "importance": 2,
+    }
+    configured_rules = rules() | {
+        "_sources": [{"id": "nfra_policy", "source_weight": 5}],
+        "policy_type_keywords": {"法律法规": ["办法", "规定"]},
+    }
+
+    normalized = radar.normalize_existing_policies([polluted, valid], configured_rules)
+
+    assert [item["id"] for item in normalized] == ["valid"]
+    assert normalized[0]["importance"] == 5
 
 
 def test_merge_policies_removes_persisted_template_record_and_keeps_official_url():

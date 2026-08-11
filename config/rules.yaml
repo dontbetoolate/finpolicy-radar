@@ -3,6 +3,55 @@ max_candidates_per_source: 40
 request_timeout_seconds: 25
 request_delay_seconds: 0.5
 max_article_chars: 12000
+minimum_article_chars: 40
+
+policy_signal_keywords:
+  - 中华人民共和国
+  - 条例
+  - 办法
+  - 规定
+  - 规章
+  - 规则
+  - 规范
+  - 通知
+  - 意见
+  - 指引
+  - 细则
+  - 方案
+  - 规划
+  - 公告
+  - 决定
+  - 令
+  - 批复
+  - 征求意见
+  - 答记者问
+  - 政策解读
+  - 专家解读
+  - 图解
+  - 一图读懂
+  - 标准
+
+excluded_title_patterns:
+  - 会见
+  - 出席
+  - 召开.*会议
+  - 工作会议
+  - 研讨会
+  - 论坛
+  - 大会
+  - (?:举办|开展|参加).{0,12}活动|活动在.{0,20}举办
+  - 调研
+  - 运行情况
+  - 统计报告
+  - 新闻发布会
+  - 讲话
+  - 致辞
+  - 任职资格.*(?:批复|核准)
+  - 行政处罚决定
+
+excluded_content_patterns:
+  - 决定授权.{0,80}担任.{0,40}清算行
+  - 启动.{0,30}网络安全审查
 
 relevance_keywords:
   金融科技: 6
