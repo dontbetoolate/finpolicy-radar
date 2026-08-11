@@ -20,8 +20,12 @@ sources:
     start_urls:
       - https://www.nfra.gov.cn/cn/view/pages/zhengwuxinxi/zhengfuxinxi.html
       - https://www.nfra.gov.cn/cn/view/pages/ItemList.html?itemId=926&itemName=%E6%94%BF%E7%AD%96%E6%B3%95%E8%A7%84&itemPId=923&itemUrl=ItemListRightMore.html
-    api_list_url: https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild
-    api_detail_url: https://www.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId
+    api_list_urls:
+      - https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild
+      - https://big5.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild
+    api_detail_urls:
+      - https://www.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId
+      - https://big5.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId
     detail_page_url: https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html
     api_item_id: 926
     allowed_domains: [www.nfra.gov.cn]

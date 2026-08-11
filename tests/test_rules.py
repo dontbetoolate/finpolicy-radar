@@ -148,6 +148,66 @@ def test_nfra_api_collector_uses_real_document_id_and_public_detail_url():
     assert candidates[0].list_date == "2024-12-27"
 
 
+def test_nfra_api_collector_falls_back_to_official_big5_endpoint():
+    source = {
+        "id": "nfra_policy",
+        "name": "国家金融监督管理总局",
+        "collector": "nfra_api",
+        "api_list_urls": [
+            "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild",
+            "https://big5.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild",
+        ],
+        "api_detail_urls": [
+            "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId",
+            "https://big5.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId",
+        ],
+        "detail_page_url": "https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html",
+        "api_item_id": 926,
+        "allowed_domains": ["www.nfra.gov.cn"],
+        "include_url_patterns": ["/cn/view/pages/governmentDetail.html"],
+        "exclude_url_patterns": [],
+        "source_weight": 5,
+    }
+
+    def response_for_url(url, params):
+        if url.startswith("https://www.nfra.gov.cn"):
+            raise RuntimeError("403 Client Error: Forbidden")
+        if "SelectDocByItemIdAndChild" in url:
+            return {
+                "rptCode": 200,
+                "data": {
+                    "rows": [
+                        {
+                            "docId": 1192308,
+                            "docTitle": "国家金融监督管理总局关于数据安全管理办法的通知",
+                            "publishDate": "2024-12-27 10:27:00",
+                        }
+                    ]
+                },
+            }
+        return {
+            "rptCode": 200,
+            "data": {
+                "docTitle": "国家金融监督管理总局关于数据安全管理办法的通知",
+                "publishDate": "2024-12-27 10:27:00",
+                "docClob": "<p>银行保险机构应当加强数据安全管理。</p>",
+            },
+        }
+
+    session = FakeApiSession(response_for_url)
+    candidate = discover_candidates(session, source, {"max_candidates_per_source": 40})[0]
+    article = parse_article(session, candidate, {"max_article_chars": 12000})
+
+    assert [url for url, _ in session.calls] == [
+        source["api_list_urls"][0],
+        source["api_list_urls"][1],
+        source["api_detail_urls"][0],
+        source["api_detail_urls"][1],
+    ]
+    assert article["content"] == "银行保险机构应当加强数据安全管理。"
+    assert article["url"].startswith("https://www.nfra.gov.cn/")
+
+
 def test_nfra_api_article_uses_official_api_body_without_template_markup():
     candidate = Candidate(
         "国家金融监督管理总局关于数据安全管理办法的通知",
