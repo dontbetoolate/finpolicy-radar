@@ -16,9 +16,14 @@ sources:
 
   - id: nfra_policy
     name: 国家金融监督管理总局
+    collector: nfra_api
     start_urls:
       - https://www.nfra.gov.cn/cn/view/pages/zhengwuxinxi/zhengfuxinxi.html
       - https://www.nfra.gov.cn/cn/view/pages/ItemList.html?itemId=926&itemName=%E6%94%BF%E7%AD%96%E6%B3%95%E8%A7%84&itemPId=923&itemUrl=ItemListRightMore.html
+    api_list_url: https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild
+    api_detail_url: https://www.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId
+    detail_page_url: https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html
+    api_item_id: 926
     allowed_domains: [www.nfra.gov.cn]
     include_url_patterns:
       - /cn/view/pages/governmentDetail.html
@@ -28,8 +33,12 @@ sources:
 
   - id: gov_policy
     name: 中国政府网
+    collector: gov_policy_api
     start_urls:
       - https://sousuo.www.gov.cn/zcwjk/policyDocumentLibrary
+    api_url: https://sousuo.www.gov.cn/search-gov/data
+    api_queries: [金融, 数据, 人工智能, 网络安全, 支付]
+    required_context_keywords: [金融, 银行, 保险, 支付, 清算, 征信, 证券, 基金, 期货, 数字人民币]
     allowed_domains: [www.gov.cn, sousuo.www.gov.cn]
     include_url_patterns:
       - /zhengce/
