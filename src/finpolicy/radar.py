@@ -628,7 +628,16 @@ def merge_policies(existing: list[dict[str, Any]], incoming: list[dict[str, Any]
             item["id"] = existing_id
             item["discovered_at"] = old_discovered or item["discovered_at"]
         index[item["id"]] = item
-    return sorted(index.values(), key=policy_sort_key, reverse=True)
+    merged = sorted(index.values(), key=policy_sort_key, reverse=True)
+    deduplicated = []
+    seen_titles: set[tuple[str, str]] = set()
+    for item in merged:
+        title_key = (str(item.get("source_id", "")), clean_text(str(item.get("title", ""))).casefold())
+        if title_key in seen_titles:
+            continue
+        seen_titles.add(title_key)
+        deduplicated.append(item)
+    return deduplicated
 
 
 def policy_is_valid(item: dict[str, Any]) -> bool:
