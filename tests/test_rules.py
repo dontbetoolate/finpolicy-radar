@@ -1,11 +1,13 @@
 from src.finpolicy import radar
 from src.finpolicy.radar import (
     Candidate,
+    api_text,
     canonical_url,
     classify,
     contains_template_expression,
     discover_candidates,
     merge_policies,
+    parse_article,
     process_candidate,
     relevance_score,
 )
@@ -59,6 +61,28 @@ class FakeSession:
         return FakeResponse(self.text, url)
 
 
+class FakeJsonResponse:
+    def __init__(self, payload, url):
+        self.payload = payload
+        self.url = url
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
+class FakeApiSession:
+    def __init__(self, response_for_url):
+        self.response_for_url = response_for_url
+        self.calls = []
+
+    def get(self, url, timeout, params=None):
+        self.calls.append((url, params))
+        return FakeJsonResponse(self.response_for_url(url, params or {}), url)
+
+
 def test_discover_candidates_skips_template_links_without_affecting_real_links():
     page = """
     <a href="/cn/view/pages/governmentDetail.html?docId={{x.docId}}"
@@ -85,6 +109,117 @@ def test_discover_candidates_skips_template_links_without_affecting_real_links()
             "https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html?docId=123456",
         )
     ]
+
+
+def test_nfra_api_collector_uses_real_document_id_and_public_detail_url():
+    source = {
+        "id": "nfra_policy",
+        "name": "国家金融监督管理总局",
+        "collector": "nfra_api",
+        "api_list_url": "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild",
+        "api_detail_url": "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId",
+        "detail_page_url": "https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html",
+        "api_item_id": 926,
+        "allowed_domains": ["www.nfra.gov.cn"],
+        "include_url_patterns": ["/cn/view/pages/governmentDetail.html"],
+        "exclude_url_patterns": [],
+        "source_weight": 5,
+    }
+    payload = {
+        "rptCode": 200,
+        "data": {
+            "rows": [
+                {
+                    "docId": 1192308,
+                    "docTitle": "国家金融监督管理总局关于数据安全管理办法的通知",
+                    "publishDate": "2024-12-27 10:27:00",
+                    "generaltype": "0",
+                }
+            ]
+        },
+    }
+    session = FakeApiSession(lambda url, params: payload)
+
+    candidates = discover_candidates(session, source, {"max_candidates_per_source": 40})
+
+    assert len(candidates) == 1
+    assert candidates[0].url == "https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html?docId=1192308&itemId=926&generaltype=0"
+    assert candidates[0].metadata["doc_id"] == "1192308"
+    assert candidates[0].list_date == "2024-12-27"
+
+
+def test_nfra_api_article_uses_official_api_body_without_template_markup():
+    candidate = Candidate(
+        "国家金融监督管理总局关于数据安全管理办法的通知",
+        "https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html?docId=1192308&itemId=926&generaltype=0",
+        "nfra_policy",
+        "国家金融监督管理总局",
+        5,
+        metadata={
+            "collector": "nfra_api",
+            "doc_id": "1192308",
+            "detail_api_url": "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId",
+        },
+    )
+    session = FakeApiSession(
+        lambda url, params: {
+            "rptCode": 200,
+            "data": {
+                "docTitle": "国家金融监督管理总局关于数据安全管理办法的通知",
+                "publishDate": "2024-12-27 10:27:00",
+                "docClob": "<p>银行保险机构应当加强数据安全管理，保护个人信息。</p>",
+            },
+        }
+    )
+
+    article = parse_article(session, candidate, {"max_article_chars": 12000})
+
+    assert article["title"] == candidate.title
+    assert article["published_at"] == "2024-12-27"
+    assert article["content"] == "银行保险机构应当加强数据安全管理，保护个人信息。"
+    assert article["url"] == candidate.url
+
+
+def test_gov_policy_api_collector_strips_highlight_markup_and_keeps_official_url():
+    source = {
+        "id": "gov_policy",
+        "name": "中国政府网",
+        "collector": "gov_policy_api",
+        "api_url": "https://sousuo.www.gov.cn/search-gov/data",
+        "api_queries": ["金融"],
+        "required_context_keywords": ["金融", "银行", "保险", "支付"],
+        "allowed_domains": ["www.gov.cn", "sousuo.www.gov.cn"],
+        "include_url_patterns": ["/zhengce/", "/zcwjk/"],
+        "exclude_url_patterns": ["/hudong/"],
+        "source_weight": 5,
+    }
+    payload = {
+        "code": 200,
+        "searchVO": {
+            "listVO": [
+                {
+                    "title": "<em>金融</em>产品网络营销管理办法",
+                    "url": "https://www.gov.cn/zhengce/zhengceku/202604/content_7066927.htm",
+                    "pubtimeStr": "2026.04.24",
+                },
+                {
+                    "title": "关于加快推进人工智能在人力资源领域应用的意见",
+                    "summary": "推动人工智能在人力资源领域应用。",
+                    "url": "https://www.gov.cn/zhengce/zhengceku/202607/content_7074732.htm",
+                    "pubtimeStr": "2026.06.22",
+                }
+            ]
+        },
+    }
+    session = FakeApiSession(lambda url, params: payload)
+
+    candidates = discover_candidates(session, source, {"max_candidates_per_source": 40})
+
+    assert api_text("<em>金融</em>产品") == "金融产品"
+    assert len(candidates) == 1
+    assert candidates[0].title == "金融产品网络营销管理办法"
+    assert candidates[0].url == "https://www.gov.cn/zhengce/zhengceku/202604/content_7066927.htm"
+    assert candidates[0].list_date == "2026-04-24"
 
 
 def test_process_candidate_skips_template_content(monkeypatch):

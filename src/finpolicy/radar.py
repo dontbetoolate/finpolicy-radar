@@ -7,7 +7,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
@@ -46,6 +46,7 @@ class Candidate:
     source_name: str
     source_weight: int
     list_date: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def now_iso() -> str:
@@ -110,6 +111,15 @@ def fetch(session: requests.Session, url: str, timeout: int) -> tuple[str, str]:
     return response.text, response.url
 
 
+def fetch_json(session: requests.Session, url: str, timeout: int, params: dict[str, Any]) -> dict[str, Any]:
+    response = session.get(url, params=params, timeout=timeout)
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Expected JSON object from {url}")
+    return payload
+
+
 def domain_allowed(url: str, domains: Iterable[str]) -> bool:
     host = urlsplit(url).netloc.lower().split(":")[0]
     return any(host == d or host.endswith("." + d) for d in domains)
@@ -139,7 +149,30 @@ def candidate_key(title: str, url: str) -> str:
     return hashlib.sha256((clean_text(title).lower() + "|" + canonical_url(url)).encode("utf-8")).hexdigest()[:18]
 
 
-def discover_candidates(session: requests.Session, source: dict[str, Any], rules: dict[str, Any]) -> list[Candidate]:
+def api_text(value: Any, separator: str = "") -> str:
+    """Convert an official API HTML fragment into plain text."""
+    decoded = html.unescape(str(value or ""))
+    if "<" not in decoded and ">" not in decoded:
+        return clean_text(decoded)
+    soup = BeautifulSoup(decoded, "html.parser")
+    for node in soup(["script", "style", "noscript"]):
+        node.decompose()
+    return clean_text(soup.get_text(separator, strip=True))
+
+
+def candidate_is_allowed(title: str, url: str, source: dict[str, Any]) -> bool:
+    return bool(
+        title
+        and len(title) >= 7
+        and url.startswith(("http://", "https://"))
+        and not contains_template_expression(title)
+        and not contains_template_expression(url)
+        and domain_allowed(url, source.get("allowed_domains", []))
+        and url_pattern_allowed(url, source.get("include_url_patterns", []), source.get("exclude_url_patterns", []))
+    )
+
+
+def discover_html_candidates(session: requests.Session, source: dict[str, Any], rules: dict[str, Any]) -> list[Candidate]:
     found: dict[str, Candidate] = {}
     max_items = int(rules.get("max_candidates_per_source", 40))
     timeout = int(rules.get("request_timeout_seconds", 25))
@@ -158,11 +191,7 @@ def discover_candidates(session: requests.Session, source: dict[str, Any], rules
             ):
                 continue
             url = canonical_url(urljoin(final_url, raw_href))
-            if not url.startswith(("http://", "https://")):
-                continue
-            if not domain_allowed(url, source.get("allowed_domains", [])):
-                continue
-            if not url_pattern_allowed(url, source.get("include_url_patterns", []), source.get("exclude_url_patterns", [])):
+            if not candidate_is_allowed(title, url, source):
                 continue
             parent_text = clean_text(tag.parent.get_text(" ", strip=True) if tag.parent else title)
             date = extract_date(parent_text, url)
@@ -180,6 +209,132 @@ def discover_candidates(session: requests.Session, source: dict[str, Any], rules
         if len(found) >= max_items:
             break
     return list(found.values())
+
+
+def discover_nfra_api_candidates(session: requests.Session, source: dict[str, Any], rules: dict[str, Any]) -> list[Candidate]:
+    """Discover real NFRA policies from its public document API, not Angular markup."""
+    timeout = int(rules.get("request_timeout_seconds", 25))
+    max_items = int(rules.get("max_candidates_per_source", 40))
+    item_id = str(source["api_item_id"])
+    payload = fetch_json(
+        session,
+        source["api_list_url"],
+        timeout,
+        {"itemId": item_id, "pageSize": max_items, "pageIndex": 1, "orderBy": "builddate"},
+    )
+    if payload.get("rptCode") != 200:
+        raise ValueError(f"NFRA API returned rptCode={payload.get('rptCode')!r}")
+
+    rows = payload.get("data", {}).get("rows", [])
+    if not isinstance(rows, list):
+        raise ValueError("NFRA API response has no document rows")
+
+    found: dict[str, Candidate] = {}
+    for row in rows:
+        if not isinstance(row, dict) or not row.get("docId"):
+            continue
+        title = api_text(row.get("docTitle") or row.get("docSubtitle"))
+        detail_params = {
+            "docId": str(row["docId"]),
+            "itemId": item_id,
+            "generaltype": str(row.get("generaltype") or "0"),
+        }
+        url = canonical_url(f"{source['detail_page_url']}?{urlencode(detail_params)}")
+        if not candidate_is_allowed(title, url, source):
+            continue
+        found[url] = Candidate(
+            title=title,
+            url=url,
+            source_id=source["id"],
+            source_name=source["name"],
+            source_weight=int(source.get("source_weight", 3)),
+            list_date=extract_date(str(row.get("publishDate") or row.get("builddate") or "")),
+            metadata={"collector": "nfra_api", "doc_id": str(row["docId"]), "detail_api_url": source["api_detail_url"]},
+        )
+    return list(found.values())[:max_items]
+
+
+def discover_gov_policy_api_candidates(session: requests.Session, source: dict[str, Any], rules: dict[str, Any]) -> list[Candidate]:
+    """Discover China Government Network policies through its public policy-library search API."""
+    timeout = int(rules.get("request_timeout_seconds", 25))
+    max_items = int(rules.get("max_candidates_per_source", 40))
+    found: dict[str, Candidate] = {}
+    successful_queries = 0
+
+    for query in source.get("api_queries", [""]):
+        params = {
+            "t": "zhengcelibrary_bm",
+            "q": query,
+            "timetype": "",
+            "mintime": "",
+            "maxtime": "",
+            "sort": "pubtime",
+            "sortType": 1,
+            "searchfield": "title",
+            "pcodeJiguan": "",
+            "childtype": "",
+            "subchildtype": "",
+            "tsbq": "",
+            "pubtimeyear": "",
+            "puborg": "",
+            "pcodeYear": "",
+            "pcodeNum": "",
+            "filetype": "",
+            "p": 1,
+            "n": max_items,
+            "inpro": "",
+            "bmfl": "",
+            "dup": "",
+            "orpro": "",
+            "type": "gwyzcwjk",
+        }
+        try:
+            payload = fetch_json(session, source["api_url"], timeout, params)
+        except Exception as exc:
+            logging.warning("China Government Network query failed for %r: %s", query, exc)
+            continue
+        if payload.get("code") != 200:
+            logging.warning("China Government Network query returned code=%r for %r", payload.get("code"), query)
+            continue
+        successful_queries += 1
+        rows = payload.get("searchVO", {}).get("listVO", [])
+        if not isinstance(rows, list):
+            logging.warning("China Government Network query returned no policy list for %r", query)
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            title = api_text(row.get("title"))
+            context = " ".join(
+                [title, api_text(row.get("summary")), api_text(row.get("puborg"))]
+            )
+            required_context = source.get("required_context_keywords", [])
+            if required_context and not any(keyword in context for keyword in required_context):
+                continue
+            url = canonical_url(str(row.get("url") or ""))
+            if not candidate_is_allowed(title, url, source):
+                continue
+            found[url] = Candidate(
+                title=title,
+                url=url,
+                source_id=source["id"],
+                source_name=source["name"],
+                source_weight=int(source.get("source_weight", 3)),
+                list_date=extract_date(str(row.get("pubtimeStr") or "")),
+            )
+
+    if not successful_queries:
+        raise ValueError("All China Government Network policy-library queries failed")
+    return sorted(found.values(), key=lambda item: (item.list_date or "", item.title), reverse=True)[:max_items]
+
+
+def discover_candidates(session: requests.Session, source: dict[str, Any], rules: dict[str, Any]) -> list[Candidate]:
+    collector = source.get("collector")
+    if collector == "nfra_api":
+        return discover_nfra_api_candidates(session, source, rules)
+    if collector == "gov_policy_api":
+        return discover_gov_policy_api_candidates(session, source, rules)
+    return discover_html_candidates(session, source, rules)
 
 
 def largest_content_block(soup: BeautifulSoup) -> str:
@@ -209,6 +364,9 @@ def largest_content_block(soup: BeautifulSoup) -> str:
 
 
 def parse_article(session: requests.Session, candidate: Candidate, rules: dict[str, Any]) -> dict[str, Any]:
+    if candidate.metadata.get("collector") == "nfra_api":
+        return parse_nfra_api_article(session, candidate, rules)
+
     timeout = int(rules.get("request_timeout_seconds", 25))
     page, final_url = fetch(session, candidate.url, timeout)
     soup = BeautifulSoup(page, "html.parser")
@@ -229,6 +387,24 @@ def parse_article(session: requests.Session, candidate: Candidate, rules: dict[s
         "published_at": published_at,
         "content": content,
     }
+
+
+def parse_nfra_api_article(session: requests.Session, candidate: Candidate, rules: dict[str, Any]) -> dict[str, Any]:
+    """Use NFRA's public document API for the body while retaining its public detail-page URL."""
+    timeout = int(rules.get("request_timeout_seconds", 25))
+    payload = fetch_json(
+        session,
+        candidate.metadata["detail_api_url"],
+        timeout,
+        {"docId": candidate.metadata["doc_id"]},
+    )
+    if payload.get("rptCode") != 200 or not isinstance(payload.get("data"), dict):
+        raise ValueError(f"NFRA detail API returned rptCode={payload.get('rptCode')!r}")
+    document = payload["data"]
+    title = api_text(document.get("docTitle") or document.get("docSubtitle")) or candidate.title
+    content = api_text(document.get("docClob"), separator=" ")[: int(rules.get("max_article_chars", 12000))]
+    published_at = extract_date(str(document.get("publishDate") or document.get("builddate") or "")) or candidate.list_date
+    return {"title": title, "url": candidate.url, "published_at": published_at, "content": content}
 
 
 def relevance_score(text: str, rules: dict[str, Any]) -> tuple[int, list[str]]:

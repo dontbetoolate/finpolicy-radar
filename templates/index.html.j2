@@ -41,13 +41,13 @@
     </div>
 
     <section id="policyList" class="policy-list">
-      {% for p in policies %}
+{% for p in policies %}
       <article class="policy-card" data-title="{{ p.title }} {{ p.summary }} {{ p.keywords|join(' ') }}" data-category="{{ p.categories|join('|') }}" data-source="{{ p.source_name }}" data-importance="{{ p.importance }}">
         <div class="card-top">
           <div class="badges">
             <span class="source-badge">{{ p.source_name }}</span>
             <span class="type-badge">{{ p.document_type }}</span>
-            {% if p.importance >= 4 %}<span class="hot-badge">重点</span>{% endif %}
+{% if p.importance >= 4 %}            <span class="hot-badge">重点</span>{% endif %}
           </div>
           <div class="stars" title="重要性 {{ p.importance }}/5">{{ '★' * p.importance }}{{ '☆' * (5-p.importance) }}</div>
         </div>
@@ -61,7 +61,7 @@
           <a class="original-link" href="{{ p.url }}" target="_blank" rel="noopener noreferrer">查看官方原文 →</a>
         </div>
       </article>
-      {% endfor %}
+{% endfor %}
     </section>
 
     <div id="emptyState" class="empty" hidden>没有符合当前筛选条件的政策。</div>
@@ -69,14 +69,14 @@
     <details class="status-panel">
       <summary>采集运行状态</summary>
       <div class="status-grid">
-        {% for s in statuses %}
+{% for s in statuses %}
         <div class="status-item {{ 'ok' if s.ok else 'failed' }}">
           <strong>{{ s.source_name }}</strong>
           <span>{{ '正常' if s.ok else '失败' }}</span>
           <small>候选 {{ s.candidates }}｜新增 {{ s.accepted }}｜已知 {{ s.skipped_known or 0 }}｜{{ s.duration_seconds }} 秒</small>
-          {% if s.error %}<small>{{ s.error }}</small>{% endif %}
+{% if s.error %}          <small>{{ s.error }}</small>{% endif %}
         </div>
-        {% endfor %}
+{% endfor %}
       </div>
     </details>
   </main>
