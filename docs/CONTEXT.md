@@ -52,7 +52,8 @@
 | `public/assets/app.js` | 浏览器端搜索、分类、来源和重要性筛选 |
 | `public/assets/style.css` | 网站样式 |
 | `tests/test_rules.py` | 当前规则、模板污染和合并行为测试 |
-| `.github/workflows/radar.yml` | 定时抓取、生成数据、提交产物和 Pages 部署 |
+| `.github/workflows/radar.yml` | 定时抓取、生成数据并提交 `data/` 与 `public/` |
+| `.github/workflows/deploy-pages.yml` | 在更新工作流成功后，从最新 `main` 的 `public/` 部署 GitHub Pages |
 | `requirements.txt` | 应用运行依赖；当前不包含 `pytest` |
 | `README.md` | 面向使用者的项目介绍和基本运行说明 |
 
@@ -163,7 +164,7 @@
 
 工作流名称为 `Update FinPolicy Radar`，位于 `.github/workflows/radar.yml`。
 
-- 触发：手动运行、每小时第 17 分钟的 cron、`main` 上非纯 `data/**`/`public/**` 的 push。
+- 触发：手动运行、每小时第 17 分钟的 cron、`main` 上会影响采集或网站的 push。纯 `data/**`、`public/**`、`docs/**`、`AGENTS.md`、`README.md` 和 `LICENSE` 修改不会触发。
 - 环境：Ubuntu、Python 3.12、安装 `requirements.txt`。
 - 主步骤：抓取并构建 → 暂存 `data` 和 `public` → 有变化时由机器人提交 → `git pull --rebase origin main` → push `main`。
 - 并发：同一并发组不取消正在运行的任务。
@@ -171,7 +172,7 @@
 
 ## 9. GitHub Pages 部署方式
 
-同一工作流将 `public/` 上传为 Pages artifact；独立的 `deploy` job 等待构建 job 成功后，通过 `actions/deploy-pages` 发布。
+`Deploy FinPolicy Radar Pages` 工作流在 `Update FinPolicy Radar` 成功后运行：它检出最新 `main`，将已提交的 `public/` 上传为 Pages artifact，再通过 `actions/deploy-pages` 发布。部署与采集分开，避免同一次运行在提交生成文件后仍部署旧提交。
 
 - 当前 GitHub Pages 地址：<https://dontbetoolate.github.io/finpolicy-radar/>
 - 当前没有自定义域名。
