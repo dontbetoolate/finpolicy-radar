@@ -120,6 +120,36 @@ def fetch_json(session: requests.Session, url: str, timeout: int, params: dict[s
     return payload
 
 
+def configured_api_urls(source: dict[str, Any], plural_key: str, singular_key: str) -> list[str]:
+    """Return ordered API endpoints while retaining singular-key compatibility."""
+    urls = source.get(plural_key)
+    if urls:
+        return [str(url) for url in urls]
+    return [str(source[singular_key])]
+
+
+def fetch_nfra_json(
+    session: requests.Session,
+    urls: list[str],
+    timeout: int,
+    params: dict[str, Any],
+    api_name: str,
+) -> dict[str, Any]:
+    """Try equivalent official NFRA endpoints in order, including its Big5 mirror."""
+    failures = []
+    for url in urls:
+        try:
+            payload = fetch_json(session, url, timeout, params)
+            if payload.get("rptCode") == 200:
+                return payload
+            failures.append(f"{url}: rptCode={payload.get('rptCode')!r}")
+        except Exception as exc:
+            failures.append(f"{url}: {exc}")
+        if url != urls[-1]:
+            logging.warning("NFRA %s endpoint failed; trying official fallback: %s", api_name, failures[-1])
+    raise RuntimeError(f"All NFRA {api_name} endpoints failed: {'; '.join(failures)}")
+
+
 def domain_allowed(url: str, domains: Iterable[str]) -> bool:
     host = urlsplit(url).netloc.lower().split(":")[0]
     return any(host == d or host.endswith("." + d) for d in domains)
@@ -216,14 +246,13 @@ def discover_nfra_api_candidates(session: requests.Session, source: dict[str, An
     timeout = int(rules.get("request_timeout_seconds", 25))
     max_items = int(rules.get("max_candidates_per_source", 40))
     item_id = str(source["api_item_id"])
-    payload = fetch_json(
+    payload = fetch_nfra_json(
         session,
-        source["api_list_url"],
+        configured_api_urls(source, "api_list_urls", "api_list_url"),
         timeout,
         {"itemId": item_id, "pageSize": max_items, "pageIndex": 1, "orderBy": "builddate"},
+        "list",
     )
-    if payload.get("rptCode") != 200:
-        raise ValueError(f"NFRA API returned rptCode={payload.get('rptCode')!r}")
 
     rows = payload.get("data", {}).get("rows", [])
     if not isinstance(rows, list):
@@ -249,7 +278,11 @@ def discover_nfra_api_candidates(session: requests.Session, source: dict[str, An
             source_name=source["name"],
             source_weight=int(source.get("source_weight", 3)),
             list_date=extract_date(str(row.get("publishDate") or row.get("builddate") or "")),
-            metadata={"collector": "nfra_api", "doc_id": str(row["docId"]), "detail_api_url": source["api_detail_url"]},
+            metadata={
+                "collector": "nfra_api",
+                "doc_id": str(row["docId"]),
+                "detail_api_urls": configured_api_urls(source, "api_detail_urls", "api_detail_url"),
+            },
         )
     return list(found.values())[:max_items]
 
@@ -392,14 +425,18 @@ def parse_article(session: requests.Session, candidate: Candidate, rules: dict[s
 def parse_nfra_api_article(session: requests.Session, candidate: Candidate, rules: dict[str, Any]) -> dict[str, Any]:
     """Use NFRA's public document API for the body while retaining its public detail-page URL."""
     timeout = int(rules.get("request_timeout_seconds", 25))
-    payload = fetch_json(
+    detail_api_urls = candidate.metadata.get("detail_api_urls")
+    if not detail_api_urls:
+        detail_api_urls = [candidate.metadata["detail_api_url"]]
+    payload = fetch_nfra_json(
         session,
-        candidate.metadata["detail_api_url"],
+        [str(url) for url in detail_api_urls],
         timeout,
         {"docId": candidate.metadata["doc_id"]},
+        "detail",
     )
-    if payload.get("rptCode") != 200 or not isinstance(payload.get("data"), dict):
-        raise ValueError(f"NFRA detail API returned rptCode={payload.get('rptCode')!r}")
+    if not isinstance(payload.get("data"), dict):
+        raise ValueError("NFRA detail API returned no document data")
     document = payload["data"]
     title = api_text(document.get("docTitle") or document.get("docSubtitle")) or candidate.title
     content = api_text(document.get("docClob"), separator=" ")[: int(rules.get("max_article_chars", 12000))]
