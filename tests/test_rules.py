@@ -1,3 +1,7 @@
+from xml.etree import ElementTree as ET
+from pathlib import Path
+
+import yaml
 from src.finpolicy import radar
 from src.finpolicy.radar import (
     Candidate,
@@ -22,6 +26,12 @@ def rules():
         "excluded_content_patterns": ["决定授权.{0,80}担任.{0,40}清算行"],
         "minimum_article_chars": 40,
     }
+
+
+def test_project_yaml_configuration_loads():
+    root = Path(__file__).resolve().parents[1]
+    assert yaml.safe_load((root / "config" / "rules.yaml").read_text(encoding="utf-8"))
+    assert yaml.safe_load((root / "config" / "sources.yaml").read_text(encoding="utf-8"))
 
 
 def test_canonical_url_removes_tracking():
@@ -150,6 +160,54 @@ def test_nfra_api_collector_uses_real_document_id_and_public_detail_url():
     assert candidates[0].url == "https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html?docId=1192308&itemId=926&generaltype=0"
     assert candidates[0].metadata["doc_id"] == "1192308"
     assert candidates[0].list_date == "2024-12-27"
+
+
+def test_nfra_api_collector_covers_current_policy_columns_pages_and_ai_guidance():
+    source = {
+        "id": "nfra_policy",
+        "name": "国家金融监督管理总局",
+        "collector": "nfra_api",
+        "api_list_url": "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild",
+        "api_detail_url": "https://www.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId",
+        "detail_page_url": "https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html",
+        "api_item_ids": [4214, 4215, 4216],
+        "api_item_types": {"4214": "法律法规与部门规章", "4215": "规范性政策文件"},
+        "api_page_size": 1,
+        "api_max_pages_per_item": 2,
+        "allowed_domains": ["www.nfra.gov.cn"],
+        "include_url_patterns": ["/cn/view/pages/governmentDetail.html"],
+        "exclude_url_patterns": [],
+        "source_weight": 5,
+    }
+
+    def response_for_url(url, params):
+        item_id = str(params["itemId"])
+        page = int(params["pageIndex"])
+        rows = {
+            ("4214", 1): [{"docId": 1, "docTitle": "金融机构监管规章", "publishDate": "2026-07-10"}],
+            ("4214", 2): [{"docId": 2, "docTitle": "金融机构管理办法", "publishDate": "2026-06-20"}],
+            ("4215", 1): [{"docId": 3, "docTitle": "金融机构规范性文件通知", "publishDate": "2026-07-01"}],
+            ("4215", 2): [{"docId": 4, "docTitle": "数据安全管理通知", "publishDate": "2026-06-19"}],
+            ("4216", 1): [{"docId": 5, "docTitle": "其他金融政策通知", "publishDate": "2026-07-31"}],
+            ("4216", 2): [{
+                "docId": 1261784,
+                "docTitle": "国家金融监督管理总局关于银行业保险业人工智能安全开发应用的指导意见",
+                "publishDate": "2026-06-18 18:35:52",
+                "generaltype": "1",
+            }],
+        }[(item_id, page)]
+        return {"rptCode": 200, "data": {"total": 2, "rows": rows}}
+
+    session = FakeApiSession(response_for_url)
+    candidates = discover_candidates(session, source, {"max_candidates_per_source": 40})
+
+    guidance = next(item for item in candidates if item.metadata["doc_id"] == "1261784")
+    assert guidance.title == "国家金融监督管理总局关于银行业保险业人工智能安全开发应用的指导意见"
+    assert guidance.list_date == "2026-06-18"
+    assert "docId=1261784" in guidance.url
+    assert "itemId=4216" in guidance.url
+    assert len(session.calls) == 6
+    assert next(item for item in candidates if item.metadata["doc_id"] == "1").metadata["official_document_type"] == "法律法规与部门规章"
 
 
 def test_nfra_api_collector_falls_back_to_official_big5_endpoint():
@@ -286,6 +344,43 @@ def test_gov_policy_api_collector_strips_highlight_markup_and_keeps_official_url
     assert candidates[0].list_date == "2026-04-24"
 
 
+def test_gov_policy_api_collector_rejects_non_fintech_transfer_payment_noise():
+    source = {
+        "id": "gov_policy",
+        "name": "中国政府网",
+        "collector": "gov_policy_api",
+        "api_url": "https://sousuo.www.gov.cn/search-gov/data",
+        "api_queries": ["支付"],
+        "required_context_keywords": ["支付"],
+        "excluded_context_patterns": ["转移支付", "医保支付"],
+        "allowed_domains": ["www.gov.cn"],
+        "include_url_patterns": ["/zhengce/"],
+        "exclude_url_patterns": [],
+        "source_weight": 5,
+    }
+    payload = {
+        "code": 200,
+        "searchVO": {
+            "listVO": [
+                {
+                    "title": "关于下达中央转移支付预算的通知",
+                    "url": "https://www.gov.cn/zhengce/noise.htm",
+                    "pubtimeStr": "2026.01.01",
+                },
+                {
+                    "title": "关于加强支付受理终端管理的通知",
+                    "url": "https://www.gov.cn/zhengce/payment.htm",
+                    "pubtimeStr": "2026.01.02",
+                },
+            ]
+        },
+    }
+
+    candidates = discover_candidates(FakeApiSession(lambda url, params: payload), source, {})
+
+    assert [item.title for item in candidates] == ["关于加强支付受理终端管理的通知"]
+
+
 def test_process_candidate_skips_template_content(monkeypatch):
     candidate = Candidate("真实政策标题", "https://www.nfra.gov.cn/policy/1", "nfra", "金融监管总局", 5)
     monkeypatch.setattr(
@@ -409,22 +504,113 @@ def test_summary_removes_repeated_title_date_source_and_print_controls():
     assert "打印" not in summary
 
 
-def test_importance_reserves_five_stars_for_high_relevance_formal_policy():
-    assert radar.importance(5, 3, "规范性文件", "中国人民银行公告〔2026〕第20号") == 3
-    assert radar.importance(5, 16, "法律法规", "金融机构数据安全管理办法") == 5
-    assert radar.importance(5, 20, "政策解读", "金融机构数据安全管理办法答记者问") == 3
-    assert radar.importance(5, 20, "监管动态", "金融科技工作会议") == 2
+def test_summary_skips_repeated_recipient_blocks_before_policy_purpose():
+    content = (
+        "各金融监管局，各政策性银行，各保险公司： "
+        "各金融监管局，各政策性银行，各保险公司： "
+        "为 规范 人工智能 安全 开发 应用，现提出以下指导意见。各机构应当建立治理机制。"
+    )
+
+    summary = radar.concise_summary(content, "人工智能安全开发应用指导意见")
+
+    assert summary.startswith("为规范人工智能安全开发应用")
+    assert "各金融监管局" not in summary
 
 
-def test_document_type_prioritizes_policy_interpretation_over_body_legal_terms():
+def test_existing_summary_is_cleaned_without_being_resummarized():
+    summary = "第一句完整说明政策目标。第二句继续说明实施要求和适用范围。"
+
+    assert radar.clean_existing_summary(summary, "政策标题") == summary
+
+
+def test_attention_levels_separate_core_tracked_and_reference_material():
+    configured_rules = {"attention_core_keywords": ["人工智能", "数据安全"]}
+    assert radar.importance(
+        5,
+        49,
+        "规范性政策文件",
+        "银行业保险业人工智能安全开发应用指导意见",
+        entities=["银行机构", "保险机构"],
+        rules=configured_rules,
+    ) == 5
+    assert radar.importance(
+        5,
+        12,
+        "规范性政策文件",
+        "某类机构数据安全专项通知",
+        entities=["其他持牌金融机构"],
+        rules=configured_rules,
+    ) == 3
+    assert radar.importance(
+        5,
+        20,
+        "政策解读与说明",
+        "金融机构数据安全管理办法答记者问",
+        entities=["多类主体或行业通用"],
+        rules=configured_rules,
+    ) == 1
+
+
+def test_document_type_uses_title_priority_and_official_column():
     configured_rules = {
-        "policy_type_keywords": {
-            "法律法规": ["法律", "规定"],
-            "政策解读": ["政策解读", "专家解读"],
+        "policy_type_patterns": {
+            "政策解读与说明": ["政策解读", "专家解读", "一图读懂"],
+            "征求意见稿": ["征求意见"],
+            "规划与实施方案": ["规划", "实施方案"],
+            "法律法规与部门规章": ["令〔"],
+            "规范性政策文件": ["指导意见", "通知", "规定"],
         }
     }
 
-    assert radar.document_type("专家解读｜构建个人信息保护法律制度", configured_rules) == "政策解读"
+    assert radar.document_type("专家解读｜构建个人信息保护法律制度", configured_rules) == "政策解读与说明"
+    assert radar.document_type("一图读懂《人工智能实施方案》", configured_rules) == "政策解读与说明"
+    assert radar.document_type("中国人民银行“十五五”改革发展规划", configured_rules) == "规划与实施方案"
+    assert radar.document_type("人工智能安全开发应用指导意见", configured_rules) == "规范性政策文件"
+    assert radar.document_type("标题没有规章词", configured_rules, "法律法规与部门规章") == "法律法规与部门规章"
+
+
+def test_applicable_entities_use_explicit_audience_not_issuing_agency():
+    configured_rules = {
+        "applicable_entity_patterns": {
+            "银行机构": ["银行业", "商业银行"],
+            "保险机构": ["保险业", "保险公司"],
+            "互联网平台、技术服务商与数据处理者": ["个人信息处理者"],
+        },
+        "general_entity_patterns": ["金融机构"],
+    }
+
+    assert radar.applicable_entities(
+        "中国人民银行关于发布人工智能治理要求的通知",
+        "本通知适用于银行业金融机构和保险公司。",
+        configured_rules,
+    ) == ["银行机构", "保险机构"]
+    assert radar.applicable_entities(
+        "大型个人信息处理者个人信息保护规定",
+        "大型个人信息处理者应当建立制度。",
+        configured_rules,
+    ) == ["互联网平台、技术服务商与数据处理者"]
+    assert radar.applicable_entities(
+        "中国人民银行改革发展规划",
+        "推动内部工作落实。",
+        configured_rules,
+    ) == ["未明确"]
+
+
+def test_applicable_entities_prefer_explicit_title_audience_over_incidental_body_mentions():
+    configured_rules = {
+        "applicable_entity_patterns": {
+            "银行机构": ["银行保险机构", "银行业"],
+            "保险机构": ["银行保险机构", "保险业"],
+            "其他持牌金融机构": ["金融资产管理公司"],
+        },
+        "general_entity_patterns": ["金融机构"],
+    }
+
+    assert radar.applicable_entities(
+        "银行保险机构数据安全管理办法",
+        "抄送金融资产管理公司等单位。",
+        configured_rules,
+    ) == ["银行机构", "保险机构"]
 
 
 def test_normalize_existing_policies_removes_navigation_pollution_and_recalculates_importance():
@@ -451,12 +637,32 @@ def test_normalize_existing_policies_removes_navigation_pollution_and_recalculat
     configured_rules = rules() | {
         "_sources": [{"id": "nfra_policy", "source_weight": 5}],
         "policy_type_keywords": {"法律法规": ["办法", "规定"]},
+        "general_entity_patterns": ["金融机构"],
     }
 
     normalized = radar.normalize_existing_policies([polluted, valid], configured_rules)
 
     assert [item["id"] for item in normalized] == ["valid"]
     assert normalized[0]["importance"] == 5
+
+
+def test_feed_is_valid_xml_with_absolute_channel_link_and_clean_items():
+    feed = radar.build_feed(
+        [{
+            "id": "policy-1",
+            "title": "人工智能治理指导意见",
+            "url": "https://www.nfra.gov.cn/policy/1",
+            "published_at": "2026-06-18",
+            "summary": "明确人工智能安全开发应用要求。",
+            "analysis_notice": "以官方原文为准。",
+        }]
+    )
+
+    root = ET.fromstring(feed)
+    assert root.findtext("channel/link") == "https://dontbetoolate.github.io/finpolicy-radar/"
+    assert root.findtext("channel/item/link") == "https://www.nfra.gov.cn/policy/1"
+    assert root.findtext("channel/item/guid") == "policy-1"
+    assert 'f"' not in feed
 
 
 def test_merge_policies_removes_persisted_template_record_and_keeps_official_url():
@@ -505,3 +711,42 @@ def test_merge_policies_removes_exact_title_duplicate_from_same_source():
     merged = merge_policies([older, newer, another_source], [])
 
     assert [item["id"] for item in merged] == ["newer", "gov-copy"]
+
+
+def test_merge_policies_treats_spacing_only_title_variants_as_same_source_duplicate():
+    compact = {
+        "id": "compact",
+        "title": "银行业保险业数字金融高质量发展实施方案",
+        "source_id": "nfra_policy",
+        "url": "https://www.nfra.gov.cn/policy/compact",
+        "summary": "正式政策摘要",
+        "published_at": "2025-12-26",
+        "discovered_at": "2026-08-12T00:00:00+00:00",
+    }
+    spaced = {
+        **compact,
+        "id": "spaced",
+        "title": "银行业保险业数字金融 高质量发展实施方案",
+        "url": "https://www.nfra.gov.cn/policy/spaced",
+        "discovered_at": "2026-08-12T00:00:01+00:00",
+    }
+
+    assert [item["id"] for item in merge_policies([compact, spaced], [])] == ["spaced"]
+
+
+def test_nfra_title_normalization_maps_known_official_mirror_variants():
+    assert radar.normalized_source_title(
+        "國家金融監督管理總局辦公廳關於印發銀行業保險業科技金融高質量發展實施方案的通知",
+        {
+            "title_normalization_map": {
+                "國家金融監督管理總局": "国家金融监督管理总局",
+                "辦公廳": "办公厅",
+                "關於": "关于",
+                "印發": "印发",
+                "銀行業": "银行业",
+                "保險業": "保险业",
+                "科技金融高質量": "科技金融高质量",
+                "發展實施方案": "发展实施方案",
+            }
+        },
+    ) == "国家金融监督管理总局办公厅关于印发银行业保险业科技金融高质量发展实施方案的通知"

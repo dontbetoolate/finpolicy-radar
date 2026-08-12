@@ -27,7 +27,52 @@ sources:
       - https://www.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId
       - https://big5.nfra.gov.cn/cbircweb/DocInfo/SelectByDocId
     detail_page_url: https://www.nfra.gov.cn/cn/view/pages/governmentDetail.html
-    api_item_id: 926
+    api_item_ids: [4214, 4215, 4216]
+    api_item_types:
+      "4214": 法律法规与部门规章
+      "4215": 规范性政策文件
+    api_page_size: 50
+    api_max_pages_per_item: 10
+    api_max_candidates: 80
+    candidate_title_keywords:
+      - 金融科技
+      - 科技金融
+      - 人工智能
+      - 大模型
+      - 智能体
+      - 算法
+      - 模型风险
+      - 数据
+      - 网络安全
+      - 信息科技
+      - 信息技术
+      - 数字金融
+      - 数字化
+      - 支付
+      - 清算
+      - 征信
+      - 金融基础设施
+      - 网络营销
+      - 互联网助贷
+      - 电子凭证
+      - 云计算
+      - 区块链
+    title_normalization_map:
+      國家金融監督管理總局: 国家金融监督管理总局
+      辦公廳: 办公厅
+      銀行業: 银行业
+      保險業: 保险业
+      金融機構: 金融机构
+      科技金融高質量: 科技金融高质量
+      發展實施方案: 发展实施方案
+      關於: 关于
+      印發: 印发
+      管理辦法: 管理办法
+      數字化: 数字化
+      數據: 数据
+      支付: 支付
+      清算: 清算
+      信息科技: 信息科技
     allowed_domains: [www.nfra.gov.cn]
     include_url_patterns:
       - /cn/view/pages/governmentDetail.html
@@ -42,7 +87,16 @@ sources:
       - https://sousuo.www.gov.cn/zcwjk/policyDocumentLibrary
     api_url: https://sousuo.www.gov.cn/search-gov/data
     api_queries: [金融, 数据, 人工智能, 网络安全, 支付]
+    api_max_candidates: 40
     required_context_keywords: [金融, 银行, 保险, 支付, 清算, 征信, 证券, 基金, 期货, 数字人民币]
+    excluded_context_patterns:
+      - 转移支付
+      - 工资支付
+      - 医保支付
+      - 医疗费用支付
+      - 财政支付
+      - 预算支付
+      - 对外支付税务
     allowed_domains: [www.gov.cn, sousuo.www.gov.cn]
     include_url_patterns:
       - /zhengce/
@@ -62,4 +116,14 @@ sources:
       - /wxzw/zcfg/
     exclude_url_patterns:
       - index_
+    candidate_title_keywords:
+      - 金融
+      - 人工智能
+      - 大模型
+      - 算法
+      - 数据
+      - 个人信息
+      - 网络安全
+      - 支付
+      - 数字人民币
     source_weight: 4
