@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="自动监测中国官方金融科技政策，提供基础分类、摘要和官方原文链接。">
+  <meta name="description" content="自动监测中国官方金融科技政策，提供客观筛选、关注级别、摘要和官方原文链接。">
   <title>金策雷达｜金融科技政策情报站</title>
   <link rel="alternate" type="application/rss+xml" title="金策雷达 RSS" href="feed.xml">
   <link rel="stylesheet" href="assets/style.css">
@@ -14,9 +14,8 @@
       <div>
         <div class="eyebrow">FINPOLICY RADAR</div>
         <h1>金策雷达</h1>
-        <p>金融科技政策情报站：自动发现、基础分类、快速判断，所有条目直达官方原文。</p>
+        <p>金融科技政策情报站：自动发现、客观筛选、辅助判断，所有条目直达官方原文。</p>
       </div>
-      <a class="rss" href="feed.xml">订阅 RSS</a>
     </div>
   </header>
 
@@ -24,38 +23,53 @@
     <section class="stats" aria-label="统计概览">
       <div><strong>{{ today_count }}</strong><span>今日发布</span></div>
       <div><strong>{{ total_count }}</strong><span>累计收录</span></div>
-      <div><strong>{{ high_count }}</strong><span>高重要性</span></div>
+      <div><strong>{{ core_count }}</strong><span>核心关注</span></div>
       <div><strong>{{ statuses|length }}</strong><span>监控来源</span></div>
     </section>
 
-    <section class="toolbar">
+    <section class="toolbar" aria-label="政策筛选">
       <label class="search"><span>搜索</span><input id="searchInput" type="search" placeholder="标题、关键词、摘要"></label>
-      <label><span>分类</span><select id="categoryFilter"><option value="">全部分类</option>{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></label>
       <label><span>来源</span><select id="sourceFilter"><option value="">全部来源</option>{% for s in source_names %}<option>{{ s }}</option>{% endfor %}</select></label>
-      <label><span>重要性</span><select id="importanceFilter"><option value="0">全部</option><option value="4">四星以上</option><option value="5">仅五星</option></select></label>
+      <label><span>适用对象</span><select id="entityFilter"><option value="">全部对象</option>{% for entity in applicable_entities %}<option>{{ entity }}</option>{% endfor %}</select></label>
+      <label><span>文件类型</span><select id="typeFilter"><option value="">全部类型</option>{% for kind in document_types %}<option>{{ kind }}</option>{% endfor %}</select></label>
+      <label><span>关注级别</span><select id="attentionFilter"><option value="">全部级别</option><option>核心关注</option><option>重点跟踪</option><option>一般参考</option></select></label>
+      <label><span>开始日期</span><input id="dateFromFilter" type="date" aria-label="发布日期开始"></label>
+      <label><span>结束日期</span><input id="dateToFilter" type="date" aria-label="发布日期结束"></label>
     </section>
 
     <div class="meta-line">
-      <span id="resultCount">显示 {{ total_count }} 条</span>
+      <div class="result-actions"><span id="resultCount">显示 {{ total_count }} 条</span><button id="clearFilters" type="button">清空筛选</button></div>
       <span>网页生成时间：{{ generated_at }}</span>
     </div>
 
+    <details class="filter-help">
+      <summary>筛选标准说明</summary>
+      <div class="filter-help-content">
+        <p><strong>适用对象</strong>表示需要执行或遵守文件要求的主体，可同时属于多个对象；无法可靠判断时标为“未明确”。</p>
+        <p><strong>文件类型</strong>优先依据官方栏目、发布形式和标题判断，不因正文引用其他法规名称而改变。</p>
+        <dl>
+          <div><dt>核心关注</dt><dd>直接涉及金融科技、人工智能、数据治理、网络安全、支付清算等核心领域，影响整个行业或大范围机构，并提出明确的新制度或治理要求。</dd></div>
+          <div><dt>重点跟踪</dt><dd>与核心领域直接相关，但范围较窄；或属于具体实施方案、专项要求、重要配套安排和可能产生实际影响的草案。</dd></div>
+          <div><dt>一般参考</dt><dd>政策解读、图解、局部事项，或与金融科技关系较间接的政策材料。</dd></div>
+        </dl>
+        <p class="help-notice">关注级别由规则自动判定，仅用于辅助筛选，不代表发布机构评价；政策效力和具体要求以官方原文为准。</p>
+      </div>
+    </details>
+
     <section id="policyList" class="policy-list">
 {% for p in policies %}
-      <article class="policy-card" data-title="{{ p.title }} {{ p.summary }} {{ p.keywords|join(' ') }}" data-category="{{ p.categories|join('|') }}" data-source="{{ p.source_name }}" data-importance="{{ p.importance }}">
+      <article class="policy-card" data-title="{{ p.title }} {{ p.summary }} {{ p.keywords|join(' ') }}" data-source="{{ p.source_name }}" data-entities="{{ p.applicable_entities|join('|') }}" data-type="{{ p.document_type }}" data-attention="{{ attention_label(p.importance) }}" data-date="{{ p.published_at or '' }}">
         <div class="card-top">
           <div class="badges">
             <span class="source-badge">{{ p.source_name }}</span>
             <span class="type-badge">{{ p.document_type }}</span>
-{% if p.importance >= 4 %}            <span class="hot-badge">重点</span>{% endif %}
+            <span class="attention-badge attention-{{ 'core' if p.importance >= 5 else 'tracked' if p.importance >= 3 else 'reference' }}">{{ attention_label(p.importance) }}</span>
           </div>
-          <div class="stars" title="重要性 {{ p.importance }}/5">{{ '★' * p.importance }}{{ '☆' * (5-p.importance) }}</div>
         </div>
         <h2><a href="{{ p.url }}" target="_blank" rel="noopener noreferrer">{{ p.title }}</a></h2>
         <div class="date-row"><span>发布日期：{{ p.published_at or '未识别' }}</span><span>发现时间：{{ p.discovered_at[:10] }}</span></div>
         <p class="summary">{{ p.summary }}</p>
-        <div class="impact"><strong>可能影响：</strong>{{ p.impact }}</div>
-        <div class="tags">{% for c in p.categories %}<span>{{ c }}</span>{% endfor %}{% for k in p.keywords[:5] %}<span class="keyword">{{ k }}</span>{% endfor %}</div>
+        <div class="entities"><strong>适用对象：</strong>{{ p.applicable_entities|join('、') }}</div>
         <div class="card-bottom">
           <small>{{ p.analysis_notice }}</small>
           <a class="original-link" href="{{ p.url }}" target="_blank" rel="noopener noreferrer">查看官方原文 →</a>
@@ -82,7 +96,7 @@
   </main>
 
   <footer>
-    <p>本站为非官方政策聚合工具。摘要与影响提示由规则自动生成，请始终以发布机构原文为准。</p>
+    <p>本站为非官方政策聚合工具。摘要与关注级别由规则自动生成，请始终以发布机构原文为准。</p>
   </footer>
   <script src="assets/app.js"></script>
 </body>

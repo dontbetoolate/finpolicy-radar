@@ -13,6 +13,7 @@ from email.utils import format_datetime
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import parse_qsl, unquote, urlencode, urljoin, urlsplit, urlunsplit
+from xml.etree import ElementTree as ET
 
 import requests
 import yaml
@@ -47,6 +48,7 @@ NAVIGATION_MARKERS = (
     "打印本页",
     "关闭窗口",
 )
+ANALYSIS_NOTICE = "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
 
 
 @dataclass
@@ -86,6 +88,13 @@ def write_json(path: Path, value: Any) -> None:
 
 def clean_text(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
+
+
+def normalized_source_title(title: str, source: dict[str, Any]) -> str:
+    normalized = clean_text(title)
+    for original, replacement in source.get("title_normalization_map", {}).items():
+        normalized = normalized.replace(str(original), str(replacement))
+    return clean_text(normalized)
 
 
 def contains_template_expression(value: str) -> bool:
@@ -213,6 +222,15 @@ def candidate_is_allowed(title: str, url: str, source: dict[str, Any]) -> bool:
     )
 
 
+def source_focus_allowed(title: str, context: str, source: dict[str, Any]) -> bool:
+    """Apply source-specific precision rules without treating broad homonyms as fintech."""
+    title_keywords = source.get("candidate_title_keywords", [])
+    if title_keywords and not any(keyword in title for keyword in title_keywords):
+        return False
+    combined = f"{title} {context}"
+    return not any(re.search(pattern, combined) for pattern in source.get("excluded_context_patterns", []))
+
+
 def discover_html_candidates(session: requests.Session, source: dict[str, Any], rules: dict[str, Any]) -> list[Candidate]:
     found: dict[str, Candidate] = {}
     max_items = int(rules.get("max_candidates_per_source", 40))
@@ -233,6 +251,8 @@ def discover_html_candidates(session: requests.Session, source: dict[str, Any], 
                 continue
             url = canonical_url(urljoin(final_url, raw_href))
             if not candidate_is_allowed(title, url, source):
+                continue
+            if not source_focus_allowed(title, "", source):
                 continue
             parent_text = clean_text(tag.parent.get_text(" ", strip=True) if tag.parent else title)
             date = extract_date(parent_text, url)
@@ -255,47 +275,64 @@ def discover_html_candidates(session: requests.Session, source: dict[str, Any], 
 def discover_nfra_api_candidates(session: requests.Session, source: dict[str, Any], rules: dict[str, Any]) -> list[Candidate]:
     """Discover real NFRA policies from its public document API, not Angular markup."""
     timeout = int(rules.get("request_timeout_seconds", 25))
-    max_items = int(rules.get("max_candidates_per_source", 40))
-    item_id = str(source["api_item_id"])
-    payload = fetch_nfra_json(
-        session,
-        configured_api_urls(source, "api_list_urls", "api_list_url"),
-        timeout,
-        {"itemId": item_id, "pageSize": max_items, "pageIndex": 1, "orderBy": "builddate"},
-        "list",
-    )
-
-    rows = payload.get("data", {}).get("rows", [])
-    if not isinstance(rows, list):
-        raise ValueError("NFRA API response has no document rows")
-
+    page_size = int(source.get("api_page_size", rules.get("max_candidates_per_source", 40)))
+    max_pages = int(source.get("api_max_pages_per_item", 1))
+    max_candidates = int(source.get("api_max_candidates", page_size * max_pages * 3))
+    item_ids = source.get("api_item_ids") or [source["api_item_id"]]
+    item_types = {str(key): value for key, value in source.get("api_item_types", {}).items()}
     found: dict[str, Candidate] = {}
-    for row in rows:
-        if not isinstance(row, dict) or not row.get("docId"):
-            continue
-        title = api_text(row.get("docTitle") or row.get("docSubtitle"))
-        detail_params = {
-            "docId": str(row["docId"]),
-            "itemId": item_id,
-            "generaltype": str(row.get("generaltype") or "0"),
-        }
-        url = canonical_url(f"{source['detail_page_url']}?{urlencode(detail_params)}")
-        if not candidate_is_allowed(title, url, source):
-            continue
-        found[url] = Candidate(
-            title=title,
-            url=url,
-            source_id=source["id"],
-            source_name=source["name"],
-            source_weight=int(source.get("source_weight", 3)),
-            list_date=extract_date(str(row.get("publishDate") or row.get("builddate") or "")),
-            metadata={
-                "collector": "nfra_api",
-                "doc_id": str(row["docId"]),
-                "detail_api_urls": configured_api_urls(source, "api_detail_urls", "api_detail_url"),
-            },
-        )
-    return list(found.values())[:max_items]
+
+    for configured_item_id in item_ids:
+        item_id = str(configured_item_id)
+        for page_index in range(1, max_pages + 1):
+            payload = fetch_nfra_json(
+                session,
+                configured_api_urls(source, "api_list_urls", "api_list_url"),
+                timeout,
+                {"itemId": item_id, "pageSize": page_size, "pageIndex": page_index, "orderBy": "builddate"},
+                "list",
+            )
+            data = payload.get("data", {})
+            rows = data.get("rows", [])
+            if not isinstance(rows, list):
+                raise ValueError(f"NFRA API response has no document rows for item {item_id}")
+
+            for row in rows:
+                if not isinstance(row, dict) or not row.get("docId"):
+                    continue
+                doc_id = str(row["docId"])
+                title = normalized_source_title(api_text(row.get("docTitle") or row.get("docSubtitle")), source)
+                if not source_focus_allowed(title, "", source):
+                    continue
+                detail_params = {
+                    "docId": doc_id,
+                    "itemId": item_id,
+                    "generaltype": str(row.get("generaltype") or "0"),
+                }
+                url = canonical_url(f"{source['detail_page_url']}?{urlencode(detail_params)}")
+                if not candidate_is_allowed(title, url, source):
+                    continue
+                found[doc_id] = Candidate(
+                    title=title,
+                    url=url,
+                    source_id=source["id"],
+                    source_name=source["name"],
+                    source_weight=int(source.get("source_weight", 3)),
+                    list_date=extract_date(str(row.get("publishDate") or row.get("builddate") or "")),
+                    metadata={
+                        "collector": "nfra_api",
+                        "doc_id": doc_id,
+                        "official_document_type": item_types.get(item_id),
+                        "title_normalization_map": source.get("title_normalization_map", {}),
+                        "detail_api_urls": configured_api_urls(source, "api_detail_urls", "api_detail_url"),
+                    },
+                )
+
+            total = int(data.get("total") or len(rows))
+            if not rows or page_index * page_size >= total:
+                break
+
+    return sorted(found.values(), key=lambda item: (item.list_date or "", item.title), reverse=True)[:max_candidates]
 
 
 def discover_gov_policy_api_candidates(session: requests.Session, source: dict[str, Any], rules: dict[str, Any]) -> list[Candidate]:
@@ -355,6 +392,8 @@ def discover_gov_policy_api_candidates(session: requests.Session, source: dict[s
             required_context = source.get("required_context_keywords", [])
             if required_context and not any(keyword in context for keyword in required_context):
                 continue
+            if not source_focus_allowed(title, context, source):
+                continue
             url = canonical_url(str(row.get("url") or ""))
             if not candidate_is_allowed(title, url, source):
                 continue
@@ -369,7 +408,8 @@ def discover_gov_policy_api_candidates(session: requests.Session, source: dict[s
 
     if not successful_queries:
         raise ValueError("All China Government Network policy-library queries failed")
-    return sorted(found.values(), key=lambda item: (item.list_date or "", item.title), reverse=True)[:max_items]
+    max_candidates = int(source.get("api_max_candidates", max_items * max(1, len(source.get("api_queries", [])))))
+    return sorted(found.values(), key=lambda item: (item.list_date or "", item.title), reverse=True)[:max_candidates]
 
 
 def discover_candidates(session: requests.Session, source: dict[str, Any], rules: dict[str, Any]) -> list[Candidate]:
@@ -464,7 +504,11 @@ def parse_nfra_api_article(session: requests.Session, candidate: Candidate, rule
     if not isinstance(payload.get("data"), dict):
         raise ValueError("NFRA detail API returned no document data")
     document = payload["data"]
-    title = api_text(document.get("docTitle") or document.get("docSubtitle")) or candidate.title
+    detail_title = normalized_source_title(
+        api_text(document.get("docTitle") or document.get("docSubtitle")),
+        {"title_normalization_map": candidate.metadata.get("title_normalization_map", {})},
+    )
+    title = candidate.title if candidate.title and not contains_template_expression(candidate.title) else detail_title
     content = api_text(document.get("docClob"), separator=" ")[: int(rules.get("max_article_chars", 12000))]
     published_at = extract_date(str(document.get("publishDate") or document.get("builddate") or "")) or candidate.list_date
     return {"title": title, "url": candidate.url, "published_at": published_at, "content": content}
@@ -489,14 +533,40 @@ def classify(text: str, rules: dict[str, Any]) -> list[str]:
     return result or ["其他金融科技政策"]
 
 
-def document_type(text: str, rules: dict[str, Any]) -> str:
-    for kind in ("征求意见", "政策解读"):
-        if any(keyword in text for keyword in rules.get("policy_type_keywords", {}).get(kind, [])):
+def document_type(title: str, rules: dict[str, Any], official_type: str | None = None) -> str:
+    """Classify by the official publication form and title, never incidental body terms."""
+    title = clean_text(title)
+    patterns = rules.get("policy_type_patterns")
+    if not patterns:  # Retain compatibility with small external/test configurations.
+        patterns = rules.get("policy_type_keywords", {})
+
+    priority = ("政策解读与说明", "政策解读", "征求意见稿", "征求意见", "规划与实施方案")
+    for kind in priority:
+        if any(re.search(pattern, title) for pattern in patterns.get(kind, [])):
             return kind
-    for kind, keywords in rules.get("policy_type_keywords", {}).items():
-        if any(keyword in text for keyword in keywords):
+    if official_type:
+        return official_type
+    for kind in ("法律法规与部门规章", "法律法规", "标准与技术规范", "规范性政策文件", "规范性文件"):
+        if any(re.search(pattern, title) for pattern in patterns.get(kind, [])):
             return kind
-    return "政策信息"
+    return "其他政策材料"
+
+
+def applicable_entities(title: str, content: str, rules: dict[str, Any]) -> list[str]:
+    """Infer explicit regulated audiences from the title and opening scope text."""
+    patterns_by_entity = rules.get("applicable_entity_patterns", {})
+    for scope_text in (clean_text(title), clean_text(content)[:1600]):
+        result = [
+            entity
+            for entity, patterns in patterns_by_entity.items()
+            if any(re.search(pattern, scope_text) for pattern in patterns)
+        ]
+        if result:
+            return result
+    scope_text = f"{clean_text(title)} {clean_text(content)[:1600]}"
+    if any(re.search(pattern, scope_text) for pattern in rules.get("general_entity_patterns", [])):
+        return ["多类主体或行业通用"]
+    return ["未明确"]
 
 
 def is_policy_material(
@@ -529,6 +599,18 @@ def concise_summary(content: str, title: str) -> str:
     )
     text = re.sub(r"【(?:打印|纠错)】|打印本页|关闭窗口", "", text)
     text = re.sub(r"^(当前位置|首页)[^。]{0,100}", "", text)
+    text = re.sub(r"\s+([：，。；])", r"\1", text)
+    text = re.sub(r"\s+([《“（])", r"\1", text)
+    text = re.sub(r"([《“（])\s+", r"\1", text)
+    text = re.sub(r"\s+([》”）])", r"\1", text)
+    text = re.sub(r"([，。；：])\s+", r"\1", text)
+    text = re.sub(r"\s*\+\s*", "+", text)
+    text = re.sub(r"(?<=[\u3400-\u9fff])\s+(?=[\u3400-\u9fff])", "", text)
+    for _ in range(2):
+        if text.startswith("各") and "：" in text[:800]:
+            text = text.split("：", 1)[1].lstrip()
+        else:
+            break
     sentences = re.split(r"(?<=[。！？；])", text)
     selected = []
     total = 0
@@ -546,26 +628,64 @@ def concise_summary(content: str, title: str) -> str:
     return summary[:220]
 
 
-def importance(source_weight: int, score: int, dtype: str, title: str) -> int:
-    value = 1 if source_weight >= 5 else 0
-    if score >= 15:
-        value += 4
-    elif score >= 10:
-        value += 3
-    elif score >= 6:
-        value += 2
-    elif score >= 3:
-        value += 1
-    if dtype in {"法律法规", "征求意见"}:
-        value += 2
-    elif dtype == "规范性文件":
-        value += 1
-    if any(word in title for word in ["办法", "规定", "指导意见", "条例", "通知", "规划"]):
-        value += 1
-    stars = 5 if value >= 8 else 4 if value >= 5 else 3 if value >= 3 else 2 if value >= 2 else 1
-    if dtype in {"政策解读", "监管动态"}:
-        stars = min(stars, 3 if dtype == "政策解读" else 2)
-    return stars
+def clean_existing_summary(summary: str, title: str) -> str:
+    """Clean an already generated summary without repeatedly summarizing or truncating it."""
+    text = clean_text(summary)
+    text = re.sub(rf"^{re.escape(clean_text(title))}\s*", "", text)
+    text = re.sub(r"【(?:打印|纠错)】|打印本页|关闭窗口", "", text)
+    text = re.sub(r"\s+([：，。；])", r"\1", text)
+    text = re.sub(r"\s+([《“（])", r"\1", text)
+    text = re.sub(r"([《“（])\s+", r"\1", text)
+    text = re.sub(r"\s+([》”）])", r"\1", text)
+    text = re.sub(r"([，。；：])\s+", r"\1", text)
+    text = re.sub(r"\s*\+\s*", "+", text)
+    text = re.sub(r"(?<=[\u3400-\u9fff])\s+(?=[\u3400-\u9fff])", "", text)
+    return clean_text(text)[:220]
+
+
+def importance(
+    source_weight: int,
+    score: int,
+    dtype: str,
+    title: str,
+    content: str = "",
+    entities: list[str] | None = None,
+    rules: dict[str, Any] | None = None,
+) -> int:
+    """Return 5/3/1 for core, tracked, and reference attention levels."""
+    del source_weight  # All accepted records already come from official sources.
+    rules = rules or {}
+    entities = entities or []
+    if dtype in {"政策解读与说明", "政策解读", "其他政策材料", "监管动态"}:
+        return 1
+
+    direct_text = f"{clean_text(title)} {clean_text(content)[:1200]}"
+    core_keywords = rules.get(
+        "attention_core_keywords",
+        ["金融科技", "人工智能", "数据治理", "数据安全", "网络安全", "个人信息", "数字人民币", "支付清算"],
+    )
+    title_core = any(keyword in title for keyword in core_keywords)
+    direct_core = any(keyword in direct_text for keyword in core_keywords)
+    broad_scope = (
+        len([entity for entity in entities if entity != "未明确"]) >= 2
+        or "多类主体或行业通用" in entities
+        or any(marker in direct_text for marker in ["银行业保险业", "金融机构", "金融行业", "全行业"])
+    )
+    formal = dtype in {
+        "法律法规与部门规章",
+        "法律法规",
+        "规范性政策文件",
+        "规范性文件",
+        "规划与实施方案",
+        "标准与技术规范",
+        "征求意见稿",
+        "征求意见",
+    }
+    if formal and title_core and broad_scope and not any(marker in title for marker in ["规章制定工作计划", "立法工作计划"]):
+        return 5
+    if formal and (direct_core or score >= 10):
+        return 3
+    return 1
 
 
 def impact_text(categories: list[str], rules: dict[str, Any]) -> str:
@@ -583,6 +703,9 @@ def process_candidate(session: requests.Session, candidate: Candidate, rules: di
         for field in ("title", "url", "content")
     ):
         return None
+    source = next((item for item in rules.get("_sources", []) if item.get("id") == candidate.source_id), {})
+    if not source_focus_allowed(article["title"], article.get("content", "")[:1600], source):
+        return None
     if not is_policy_material(article["title"], article.get("content", ""), rules):
         return None
     combined = " ".join([article["title"], article.get("content", "")[:4000]])
@@ -590,7 +713,8 @@ def process_candidate(session: requests.Session, candidate: Candidate, rules: di
     if score < int(rules.get("minimum_relevance_score", 2)):
         return None
     categories = classify(combined, rules)
-    dtype = document_type(article["title"] + " " + article.get("content", "")[:1200], rules)
+    dtype = document_type(article["title"], rules, candidate.metadata.get("official_document_type"))
+    entities = applicable_entities(article["title"], article.get("content", ""), rules)
     discovered = now_iso()
     return {
         "id": candidate_key(article["title"], article["url"]),
@@ -602,13 +726,22 @@ def process_candidate(session: requests.Session, candidate: Candidate, rules: di
         "updated_at": discovered,
         "url": article["url"],
         "document_type": dtype,
+        "applicable_entities": entities,
         "categories": categories,
         "keywords": hits[:10],
         "relevance_score": score,
-        "importance": importance(candidate.source_weight, score, dtype, article["title"]),
+        "importance": importance(
+            candidate.source_weight,
+            score,
+            dtype,
+            article["title"],
+            article.get("content", ""),
+            entities,
+            rules,
+        ),
         "summary": concise_summary(article.get("content", ""), article["title"]),
         "impact": impact_text(categories, rules),
-        "analysis_notice": "以上摘要与影响提示由规则自动生成，不代表发布机构观点；请以官方原文为准。",
+        "analysis_notice": ANALYSIS_NOTICE,
     }
 
 
@@ -632,12 +765,17 @@ def merge_policies(existing: list[dict[str, Any]], incoming: list[dict[str, Any]
     deduplicated = []
     seen_titles: set[tuple[str, str]] = set()
     for item in merged:
-        title_key = (str(item.get("source_id", "")), clean_text(str(item.get("title", ""))).casefold())
+        title_key = (str(item.get("source_id", "")), normalize_title_for_deduplication(str(item.get("title", ""))))
         if title_key in seen_titles:
             continue
         seen_titles.add(title_key)
         deduplicated.append(item)
     return deduplicated
+
+
+def normalize_title_for_deduplication(title: str) -> str:
+    """Collapse harmless spacing/punctuation differences while retaining distinct policy titles."""
+    return re.sub(r"[\s\u3000，,。；;：:（）()《》“”‘’\-—]+", "", clean_text(title)).casefold()
 
 
 def policy_is_valid(item: dict[str, Any]) -> bool:
@@ -657,24 +795,38 @@ def normalize_existing_policies(items: list[dict[str, Any]], rules: dict[str, An
         item = dict(original)
         if not is_policy_material(item.get("title", ""), item.get("summary", ""), rules, minimum_chars=12):
             continue
-        item["summary"] = concise_summary(item.get("summary", ""), item.get("title", ""))
-        item["document_type"] = document_type(
-            f"{item.get('title', '')} {item.get('summary', '')[:1200]}",
-            rules,
+        item["summary"] = clean_existing_summary(item.get("summary", ""), item.get("title", ""))
+        item["document_type"] = document_type(item.get("title", ""), rules)
+        item["applicable_entities"] = applicable_entities(
+            item.get("title", ""), item.get("summary", ""), rules
         )
         item["importance"] = importance(
             int(next((source.get("source_weight", 3) for source in rules.get("_sources", []) if source.get("id") == item.get("source_id")), 3)),
             int(item.get("relevance_score", 0)),
             item["document_type"],
             item.get("title", ""),
+            item.get("summary", ""),
+            item["applicable_entities"],
+            rules,
         )
+        item["analysis_notice"] = ANALYSIS_NOTICE
         normalized.append(item)
     return normalized
 
 
-def build_feed(policies: list[dict[str, Any]], site_title: str = "金策雷达") -> str:
+def build_feed(
+    policies: list[dict[str, Any]],
+    site_title: str = "金策雷达",
+    site_url: str = "https://dontbetoolate.github.io/finpolicy-radar/",
+) -> str:
     updated = datetime.now(timezone.utc)
-    entries = []
+    rss = ET.Element("rss", {"version": "2.0"})
+    channel = ET.SubElement(rss, "channel")
+    ET.SubElement(channel, "title").text = site_title
+    ET.SubElement(channel, "link").text = site_url
+    ET.SubElement(channel, "description").text = "金融科技政策自动监测"
+    ET.SubElement(channel, "language").text = "zh-CN"
+    ET.SubElement(channel, "lastBuildDate").text = format_datetime(updated)
     for item in policies[:50]:
         date_str = item.get("published_at") or item.get("discovered_at")
         try:
@@ -683,41 +835,48 @@ def build_feed(policies: list[dict[str, Any]], site_title: str = "金策雷达")
                 dt = dt.replace(tzinfo=timezone.utc)
         except Exception:
             dt = updated
-        description = html.escape(item.get("summary", "") + " " + item.get("analysis_notice", ""))
-        entries.append(
-            f"""<item><title>{html.escape(item['title'])}</title><link>{html.escape(item['url'])}</link>"
-            f"<guid isPermaLink=\"false\">{item['id']}</guid><pubDate>{format_datetime(dt)}</pubDate>"
-            f"<description>{description}</description></item>"""
+        entry = ET.SubElement(channel, "item")
+        ET.SubElement(entry, "title").text = item["title"]
+        ET.SubElement(entry, "link").text = item["url"]
+        ET.SubElement(entry, "guid", {"isPermaLink": "false"}).text = item["id"]
+        ET.SubElement(entry, "pubDate").text = format_datetime(dt)
+        ET.SubElement(entry, "description").text = " ".join(
+            part for part in [item.get("summary", ""), item.get("analysis_notice", "")] if part
         )
-    return (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        '<rss version="2.0"><channel>'
-        f'<title>{site_title}</title><link>./</link><description>金融科技政策自动监测</description>'
-        f'<lastBuildDate>{format_datetime(updated)}</lastBuildDate>{"".join(entries)}</channel></rss>'
-    )
+    return ET.tostring(rss, encoding="unicode", xml_declaration=True)
 
 
-def build_site(policies: list[dict[str, Any]], statuses: list[dict[str, Any]]) -> None:
+def attention_label(value: int) -> str:
+    return "核心关注" if value >= 5 else "重点跟踪" if value >= 3 else "一般参考"
+
+
+def build_site(policies: list[dict[str, Any]], statuses: list[dict[str, Any]], rules: dict[str, Any]) -> None:
     PUBLIC_DIR.mkdir(parents=True, exist_ok=True)
     env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), autoescape=select_autoescape(["html", "xml"]))
     template = env.get_template("index.html.j2")
-    categories = sorted({category for item in policies for category in item.get("categories", [])})
     source_names = sorted({item.get("source_name", "") for item in policies if item.get("source_name")})
-    high_count = sum(1 for item in policies if int(item.get("importance", 0)) >= 4)
+    applicable_entities = list(rules.get("applicable_entity_patterns", {})) + ["多类主体或行业通用", "未明确"]
+    document_types = list(rules.get("policy_type_patterns", {})) + ["其他政策材料"]
+    core_count = sum(1 for item in policies if int(item.get("importance", 0)) >= 5)
     today = datetime.now(timezone.utc).date().isoformat()
     today_count = sum(1 for item in policies if (item.get("published_at") or "") == today)
     html_output = template.render(
         policies=policies,
         statuses=statuses,
-        categories=categories,
         source_names=source_names,
+        applicable_entities=applicable_entities,
+        document_types=document_types,
         total_count=len(policies),
-        high_count=high_count,
+        core_count=core_count,
         today_count=today_count,
         generated_at=now_iso(),
+        attention_label=attention_label,
     )
     (PUBLIC_DIR / "index.html").write_text(html_output, encoding="utf-8")
-    (PUBLIC_DIR / "feed.xml").write_text(build_feed(policies), encoding="utf-8")
+    (PUBLIC_DIR / "feed.xml").write_text(
+        build_feed(policies, site_url=str(rules.get("site_url") or "https://dontbetoolate.github.io/finpolicy-radar/")),
+        encoding="utf-8",
+    )
     write_json(PUBLIC_DIR / "policies.json", policies)
     write_json(PUBLIC_DIR / "status.json", statuses)
 
@@ -768,7 +927,7 @@ def run(crawl: bool = True) -> None:
     policies = merge_policies(existing, incoming)
     write_json(DATA_DIR / "policies.json", policies)
     write_json(DATA_DIR / "status.json", statuses)
-    build_site(policies, statuses)
+    build_site(policies, statuses, rules)
     logging.info("Built %s policies (%s new/updated)", len(policies), len(incoming))
 
 

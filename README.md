@@ -8,7 +8,7 @@
 - 自动发现候选政策页面；
 - 关键词相关性过滤；
 - URL与标题去重；
-- 规则分类、政策类型识别、1—5星重要性；
+- 适用对象、文件类型和三级关注级别识别；
 - 从官方正文生成基础摘要和可能影响提示；
 - 生成响应式静态网页和RSS；
 - 每条记录保留官方原文链接；
@@ -59,13 +59,15 @@ JavaScript 驱动来源还可配置 `collector` 和对应的公开 API 参数。
 
 政府网站改版后，通用 HTML 来源通常只需要修改该配置；专用公开接口发生变化时还需同步调整采集器和回归测试。
 
-## 调整分类与相关性
+## 调整分析与相关性
 
 编辑 `config/rules.yaml`：
 
 - `relevance_keywords`：关键词及分数；
-- `categories`：分类词典；
-- `policy_type_keywords`：文件类型；
+- `categories`：历史兼容分类词典，当前首页不展示；
+- `policy_type_patterns`：文件类型；
+- `applicable_entity_patterns`：适用对象；
+- `attention_core_keywords`：核心关注领域；
 - `impact_templates`：规则影响提示。
 
 ## 已知边界
