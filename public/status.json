@@ -2,44 +2,45 @@
   {
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
-    "checked_at": "2026-08-18T01:50:17+00:00",
+    "checked_at": "2026-08-18T03:07:59+00:00",
     "ok": true,
     "candidates": 35,
     "accepted": 1,
     "skipped_known": 16,
     "article_errors": 0,
-    "duration_seconds": 17.08
+    "duration_seconds": 18.67
   },
   {
     "source_id": "nfra_policy",
     "source_name": "国家金融监督管理总局",
-    "checked_at": "2026-08-18T01:50:35+00:00",
-    "ok": false,
-    "error": "All NFRA list endpoints failed: https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild: 403 Client Error: Forbidden for url: https://www.nfra.gov.cn/cbircweb/DocInfo/SelectDocByItemIdAndChild?itemId=4214&pageSize=50&pageIndex=1&orderBy=builddate; https://big5.nfra.gov.cn/cbircweb/DocInfo",
-    "candidates": 0,
+    "checked_at": "2026-08-18T03:08:18+00:00",
+    "ok": true,
+    "candidates": 10,
     "accepted": 0,
-    "duration_seconds": 0.77
+    "skipped_known": 10,
+    "article_errors": 0,
+    "duration_seconds": 3.31
   },
   {
     "source_id": "gov_policy",
     "source_name": "中国政府网",
-    "checked_at": "2026-08-18T01:50:35+00:00",
+    "checked_at": "2026-08-18T03:08:21+00:00",
     "ok": true,
     "candidates": 40,
     "accepted": 0,
     "skipped_known": 38,
     "article_errors": 0,
-    "duration_seconds": 5.96
+    "duration_seconds": 5.8
   },
   {
     "source_id": "cac_policy",
     "source_name": "国家互联网信息办公室",
-    "checked_at": "2026-08-18T01:50:41+00:00",
+    "checked_at": "2026-08-18T03:08:27+00:00",
     "ok": true,
     "candidates": 24,
     "accepted": 0,
     "skipped_known": 15,
     "article_errors": 0,
-    "duration_seconds": 8.98
+    "duration_seconds": 9.6
   }
 ]
