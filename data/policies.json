@@ -1,5 +1,30 @@
 [
   {
+    "id": "f25c9c7e94722a52da",
+    "title": "《网络数据安全风险评估办法》实施有关事项答记者问",
+    "source_id": "cac_policy",
+    "source_name": "国家互联网信息办公室",
+    "published_at": "2026-08-20",
+    "discovered_at": "2026-08-20T03:10:24+00:00",
+    "updated_at": "2026-08-20T03:10:24+00:00",
+    "url": "https://www.cac.gov.cn/2026-08/20/c_1788889498173657.htm",
+    "document_type": "政策解读与说明",
+    "applicable_entities": [
+      "互联网平台、技术服务商与数据处理者"
+    ],
+    "categories": [
+      "网络与信息安全"
+    ],
+    "keywords": [
+      "数据安全"
+    ],
+    "relevance_score": 5,
+    "importance": 1,
+    "summary": "《网络数据安全风险评估办法》于2026年8月20日起施行，国家互联网信息办公室有关负责人就其实施有关事项回答了记者提问。问1：如何申请网络数据安全风险评估服务认证？",
+    "impact": "可能影响个人信息保护、网络安全、数据安全评估、跨境传输或安全事件处置。",
+    "analysis_notice": "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
+  },
+  {
     "id": "31beb408e64b584d21",
     "title": "中国人民银行印发《中国人民银行“十五五”改革发展规划》",
     "source_id": "pbc_news",
@@ -1925,14 +1950,14 @@
     ]
   },
   {
-    "id": "eab1ebf57aa1b96083",
+    "id": "26d2b93538a7b30ffc",
     "title": "中国人民银行 中国证监会令〔2025〕第7号（金融基础设施监督管理办法）",
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
     "published_at": "2025-08-01",
-    "discovered_at": "2026-08-20T01:51:24+00:00",
-    "updated_at": "2026-08-20T01:51:24+00:00",
-    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/2025120610050660916/index.html",
+    "discovered_at": "2026-08-20T03:10:08+00:00",
+    "updated_at": "2026-08-20T03:10:08+00:00",
+    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/b71de79692a649a6863b7ba9c9f681b4/index.html",
     "document_type": "法律法规与部门规章",
     "applicable_entities": [
       "支付清算与金融基础设施"
