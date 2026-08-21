@@ -25,6 +25,31 @@
     "analysis_notice": "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
   },
   {
+    "id": "ba50ecaa628dc02e3b",
+    "title": "关于进一步做好财政金融协同促内需政策有关工作的通知",
+    "source_id": "gov_policy",
+    "source_name": "中国政府网",
+    "published_at": "2026-08-17",
+    "discovered_at": "2026-08-21T11:41:03+00:00",
+    "updated_at": "2026-08-21T11:41:03+00:00",
+    "url": "https://www.gov.cn/zhengce/zhengceku/202608/content_7078798.htm",
+    "document_type": "规范性政策文件",
+    "applicable_entities": [
+      "银行机构"
+    ],
+    "categories": [
+      "银行保险数字化"
+    ],
+    "keywords": [
+      "金融机构"
+    ],
+    "relevance_score": 2,
+    "importance": 1,
+    "summary": "财金〔2026〕71号各省、自治区、直辖市、计划单列市财政厅（局），新疆生产建设兵团财政局，中国人民银行上海总部及各省、自治区、直辖市、计划单列市分行，各金融监管局，有关金融机构：为贯彻落实党中央、国务院关于扩大内需的决策部署，激发民间投资，促进居民消费，更好发挥财政金融协同促内需一揽子政策作用，现就有关事项通知如下：一、扩大贴息范围将符合条件的中小微民营企业的新发放流动资金贷款纳入中小微企业贷款贴息政策支持范围，中央财政按照流动资金贷",
+    "impact": "可能影响银行保险机构的信息科技治理、数字化建设、外包管理或业务流程。",
+    "analysis_notice": "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
+  },
+  {
     "id": "31beb408e64b584d21",
     "title": "中国人民银行印发《中国人民银行“十五五”改革发展规划》",
     "source_id": "pbc_news",
@@ -1950,14 +1975,14 @@
     ]
   },
   {
-    "id": "eab1ebf57aa1b96083",
+    "id": "26d2b93538a7b30ffc",
     "title": "中国人民银行 中国证监会令〔2025〕第7号（金融基础设施监督管理办法）",
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
     "published_at": "2025-08-01",
-    "discovered_at": "2026-08-21T10:46:59+00:00",
-    "updated_at": "2026-08-21T10:46:59+00:00",
-    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/2025120610050660916/index.html",
+    "discovered_at": "2026-08-21T11:40:52+00:00",
+    "updated_at": "2026-08-21T11:40:52+00:00",
+    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/b71de79692a649a6863b7ba9c9f681b4/index.html",
     "document_type": "法律法规与部门规章",
     "applicable_entities": [
       "支付清算与金融基础设施"
