@@ -1,5 +1,30 @@
 [
   {
+    "id": "aaaa5a9ef3026aa079",
+    "title": "国家医疗保障局关于做好长期护理保险支付管理工作的指导意见",
+    "source_id": "gov_policy",
+    "source_name": "中国政府网",
+    "published_at": "2026-08-21",
+    "discovered_at": "2026-08-26T07:58:34+00:00",
+    "updated_at": "2026-08-26T07:58:34+00:00",
+    "url": "https://www.gov.cn/zhengce/zhengceku/202608/content_7079155.htm",
+    "document_type": "规范性政策文件",
+    "applicable_entities": [
+      "未明确"
+    ],
+    "categories": [
+      "数字人民币与支付"
+    ],
+    "keywords": [
+      "支付"
+    ],
+    "relevance_score": 3,
+    "importance": 1,
+    "summary": "医保发〔2026〕19号来源：国家医保局网站主题分类：卫生、体育\\卫生公文种类：意见成文日期：2026年08月21日标题：国家医疗保障局关于做好长期护理保险支付管理工作的指导意见发文机关：国家医保局发文字号：医保发〔2026〕19号来源：国家医保局网站主题分类：卫生、体育\\卫生公文种类：意见成文日期：2026年08月21日",
+    "impact": "可能影响支付产品、清算体系、数字人民币应用、支付机构或商户服务流程。",
+    "analysis_notice": "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
+  },
+  {
     "id": "f25c9c7e94722a52da",
     "title": "《网络数据安全风险评估办法》实施有关事项答记者问",
     "source_id": "cac_policy",
@@ -1975,14 +2000,14 @@
     ]
   },
   {
-    "id": "26d2b93538a7b30ffc",
+    "id": "eab1ebf57aa1b96083",
     "title": "中国人民银行 中国证监会令〔2025〕第7号（金融基础设施监督管理办法）",
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
     "published_at": "2025-08-01",
-    "discovered_at": "2026-08-26T07:08:11+00:00",
-    "updated_at": "2026-08-26T07:08:11+00:00",
-    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/b71de79692a649a6863b7ba9c9f681b4/index.html",
+    "discovered_at": "2026-08-26T07:58:27+00:00",
+    "updated_at": "2026-08-26T07:58:27+00:00",
+    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/2025120610050660916/index.html",
     "document_type": "法律法规与部门规章",
     "applicable_entities": [
       "支付清算与金融基础设施"
