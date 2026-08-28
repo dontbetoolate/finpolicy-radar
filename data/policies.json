@@ -1,5 +1,30 @@
 [
   {
+    "id": "a8c4128397c4bbf7fe",
+    "title": "中国人民银行公告﹝2026﹞第22号",
+    "source_id": "pbc_news",
+    "source_name": "中国人民银行",
+    "published_at": "2026-08-28",
+    "discovered_at": "2026-08-28T05:23:21+00:00",
+    "updated_at": "2026-08-28T05:23:21+00:00",
+    "url": "https://www.pbc.gov.cn/goutongjiaoliu/113456/113469/2026082809193480410/index.html",
+    "document_type": "规范性政策文件",
+    "applicable_entities": [
+      "未明确"
+    ],
+    "categories": [
+      "AI与大模型"
+    ],
+    "keywords": [
+      "人工智能"
+    ],
+    "relevance_score": 5,
+    "importance": 3,
+    "summary": "中国人民银行定于2026年9月4日发行科创未来（人工智能）金银纪念币一套。该套金银纪念币共3枚，其中金质纪念币1枚，银质纪念币2枚，均为中华人民共和国法定货币。",
+    "impact": "可能影响金融机构大模型、智能客服、智能风控或智能体应用的开发、测试、上线与持续治理。",
+    "analysis_notice": "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
+  },
+  {
     "id": "aaaa5a9ef3026aa079",
     "title": "国家医疗保障局关于做好长期护理保险支付管理工作的指导意见",
     "source_id": "gov_policy",
@@ -2000,14 +2025,14 @@
     ]
   },
   {
-    "id": "eab1ebf57aa1b96083",
+    "id": "26d2b93538a7b30ffc",
     "title": "中国人民银行 中国证监会令〔2025〕第7号（金融基础设施监督管理办法）",
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
     "published_at": "2025-08-01",
-    "discovered_at": "2026-08-27T20:29:44+00:00",
-    "updated_at": "2026-08-27T20:29:44+00:00",
-    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/2025120610050660916/index.html",
+    "discovered_at": "2026-08-28T05:23:33+00:00",
+    "updated_at": "2026-08-28T05:23:33+00:00",
+    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/b71de79692a649a6863b7ba9c9f681b4/index.html",
     "document_type": "法律法规与部门规章",
     "applicable_entities": [
       "支付清算与金融基础设施"
