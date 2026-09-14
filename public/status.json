@@ -2,45 +2,45 @@
   {
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
-    "checked_at": "2026-09-14T12:55:38+00:00",
+    "checked_at": "2026-09-14T18:37:54+00:00",
     "ok": true,
     "candidates": 35,
     "accepted": 1,
     "skipped_known": 16,
     "article_errors": 0,
-    "duration_seconds": 17.78
+    "duration_seconds": 17.89
   },
   {
     "source_id": "nfra_policy",
     "source_name": "国家金融监督管理总局",
-    "checked_at": "2026-09-14T12:55:56+00:00",
+    "checked_at": "2026-09-14T18:38:12+00:00",
     "ok": true,
     "candidates": 10,
     "accepted": 0,
     "skipped_known": 10,
     "article_errors": 0,
-    "duration_seconds": 4.12
+    "duration_seconds": 3.98
   },
   {
     "source_id": "gov_policy",
     "source_name": "中国政府网",
-    "checked_at": "2026-09-14T12:56:00+00:00",
+    "checked_at": "2026-09-14T18:38:16+00:00",
     "ok": true,
     "candidates": 40,
     "accepted": 0,
     "skipped_known": 38,
     "article_errors": 0,
-    "duration_seconds": 6.48
+    "duration_seconds": 6.88
   },
   {
     "source_id": "cac_policy",
     "source_name": "国家互联网信息办公室",
-    "checked_at": "2026-09-14T12:56:06+00:00",
+    "checked_at": "2026-09-14T18:38:22+00:00",
     "ok": true,
-    "candidates": 16,
-    "accepted": 1,
-    "skipped_known": 4,
+    "candidates": 18,
+    "accepted": 0,
+    "skipped_known": 5,
     "article_errors": 0,
-    "duration_seconds": 12.19
+    "duration_seconds": 12.0
   }
 ]
