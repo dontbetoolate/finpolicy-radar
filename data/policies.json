@@ -1,5 +1,30 @@
 [
   {
+    "id": "62afe00079e2b1fb10",
+    "title": "关于发布生成式人工智能服务已备案信息的公告（2026年7月至8月）",
+    "source_id": "cac_policy",
+    "source_name": "国家互联网信息办公室",
+    "published_at": "2026-09-14",
+    "discovered_at": "2026-09-14T12:56:10+00:00",
+    "updated_at": "2026-09-14T12:56:10+00:00",
+    "url": "https://www.cac.gov.cn/2026-09/14/c_1791136833136332.htm",
+    "document_type": "规范性政策文件",
+    "applicable_entities": [
+      "未明确"
+    ],
+    "categories": [
+      "AI与大模型"
+    ],
+    "keywords": [
+      "人工智能"
+    ],
+    "relevance_score": 5,
+    "importance": 3,
+    "summary": "促进生成式人工智能服务创新发展和规范应用，网信部门会同有关部门按照《生成式人工智能服务管理暂行办法》要求，持续开展生成式人工智能服务备案工作。2026年7月至8月，新增124款生成式人工智能服务在国家网信办完成备案，其中包括7款提供手机端侧生成式人工智能服务，对于通过API接口或其他方式直接调用已备案模型能力的生成式人工智能应用或功能，由地方网信办开展登记，新增133款完成登记。",
+    "impact": "可能影响金融机构大模型、智能客服、智能风控或智能体应用的开发、测试、上线与持续治理。",
+    "analysis_notice": "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
+  },
+  {
     "id": "a8c4128397c4bbf7fe",
     "title": "中国人民银行公告﹝2026﹞第22号",
     "source_id": "pbc_news",
@@ -2052,14 +2077,14 @@
     ]
   },
   {
-    "id": "26d2b93538a7b30ffc",
+    "id": "eab1ebf57aa1b96083",
     "title": "中国人民银行 中国证监会令〔2025〕第7号（金融基础设施监督管理办法）",
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
     "published_at": "2025-08-01",
-    "discovered_at": "2026-09-14T06:16:40+00:00",
-    "updated_at": "2026-09-14T06:16:40+00:00",
-    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/b71de79692a649a6863b7ba9c9f681b4/index.html",
+    "discovered_at": "2026-09-14T12:55:53+00:00",
+    "updated_at": "2026-09-14T12:55:53+00:00",
+    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/2025120610050660916/index.html",
     "document_type": "法律法规与部门规章",
     "applicable_entities": [
       "支付清算与金融基础设施"
