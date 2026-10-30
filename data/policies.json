@@ -1,5 +1,31 @@
 [
   {
+    "id": "c80b03e6f26f53f417",
+    "title": "国家互联网信息办公室关于发布第十九批深度合成服务算法备案信息的公告",
+    "source_id": "cac_policy",
+    "source_name": "国家互联网信息办公室",
+    "published_at": "2026-10-30",
+    "discovered_at": "2026-10-30T12:53:25+00:00",
+    "updated_at": "2026-10-30T12:53:25+00:00",
+    "url": "https://www.cac.gov.cn/2026-10/30/c_1795114304542687.htm",
+    "document_type": "规范性政策文件",
+    "applicable_entities": [
+      "未明确"
+    ],
+    "categories": [
+      "AI与大模型",
+      "监管科技"
+    ],
+    "keywords": [
+      "算法"
+    ],
+    "relevance_score": 3,
+    "importance": 3,
+    "summary": "根据《互联网信息服务深度合成管理规定》，现公开发布第十九批境内深度合成服务算法备案信息，具体信息可通过互联网信息服务算法备案系统（https://beian.cac.gov.cn）进行查询。任何单位或个人如有疑议，请发送邮件至pingguchu@cac.gov.cn，提出疑议应以事实为依据，并提供相关证据材料。",
+    "impact": "可能影响金融机构大模型、智能客服、智能风控或智能体应用的开发、测试、上线与持续治理。",
+    "analysis_notice": "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
+  },
+  {
     "id": "f76bfed67e7e3ede4b",
     "title": "中央网络安全和信息化委员会印发《国家信息化“十五五”规划》",
     "source_id": "cac_policy",
@@ -2234,14 +2260,14 @@
     ]
   },
   {
-    "id": "eab1ebf57aa1b96083",
+    "id": "26d2b93538a7b30ffc",
     "title": "中国人民银行 中国证监会令〔2025〕第7号（金融基础设施监督管理办法）",
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
     "published_at": "2025-08-01",
-    "discovered_at": "2026-10-30T05:46:11+00:00",
-    "updated_at": "2026-10-30T05:46:11+00:00",
-    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/2025120610050660916/index.html",
+    "discovered_at": "2026-10-30T12:53:09+00:00",
+    "updated_at": "2026-10-30T12:53:09+00:00",
+    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/b71de79692a649a6863b7ba9c9f681b4/index.html",
     "document_type": "法律法规与部门规章",
     "applicable_entities": [
       "支付清算与金融基础设施"
