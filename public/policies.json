@@ -1,5 +1,33 @@
 [
   {
+    "id": "032b1390261fcc0ba0",
+    "title": "中国人民银行与加拿大财政部、加拿大央行共同签署《中加金融工作组工作规范...",
+    "source_id": "pbc_news",
+    "source_name": "中国人民银行",
+    "published_at": "2026-11-18",
+    "discovered_at": "2026-11-18T04:18:27+00:00",
+    "updated_at": "2026-11-18T04:18:27+00:00",
+    "url": "https://www.pbc.gov.cn/goutongjiaoliu/113456/113469/2026111809190698994/index.html",
+    "document_type": "规范性政策文件",
+    "applicable_entities": [
+      "多类主体或行业通用"
+    ],
+    "categories": [
+      "数字人民币与支付"
+    ],
+    "keywords": [
+      "金融科技",
+      "支付",
+      "反洗钱",
+      "金融机构"
+    ],
+    "relevance_score": 13,
+    "importance": 3,
+    "summary": "近期，中国人民银行行长潘功胜与加拿大财政部长商鹏飞、加拿大央行行长麦克勒姆共同签署了《中加金融工作组工作规范》。为落实今年1月中加两国领导人会晤重要共识，中国人民银行与加拿大财政部、加拿大央行牵头成立金融工作组，是《中国和加拿大领导人会晤联合声明》的重要成果之一。",
+    "impact": "可能影响支付产品、清算体系、数字人民币应用、支付机构或商户服务流程。",
+    "analysis_notice": "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
+  },
+  {
     "id": "76bddeb53bd121b0e5",
     "title": "中国人民银行决定上调金融机构外汇存款准备金率",
     "source_id": "pbc_news",
@@ -2285,14 +2313,14 @@
     ]
   },
   {
-    "id": "26d2b93538a7b30ffc",
+    "id": "eab1ebf57aa1b96083",
     "title": "中国人民银行 中国证监会令〔2025〕第7号（金融基础设施监督管理办法）",
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
     "published_at": "2025-08-01",
-    "discovered_at": "2026-11-17T22:21:31+00:00",
-    "updated_at": "2026-11-17T22:21:31+00:00",
-    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/b71de79692a649a6863b7ba9c9f681b4/index.html",
+    "discovered_at": "2026-11-18T04:18:41+00:00",
+    "updated_at": "2026-11-18T04:18:41+00:00",
+    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/2025120610050660916/index.html",
     "document_type": "法律法规与部门规章",
     "applicable_entities": [
       "支付清算与金融基础设施"
