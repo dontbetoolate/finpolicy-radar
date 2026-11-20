@@ -1,5 +1,30 @@
 [
   {
+    "id": "b2ceb04afcddc9e33d",
+    "title": "关于发布生成式人工智能服务已备案信息的公告（2026年9月至10月）",
+    "source_id": "cac_policy",
+    "source_name": "国家互联网信息办公室",
+    "published_at": "2026-11-20",
+    "discovered_at": "2026-11-20T11:36:49+00:00",
+    "updated_at": "2026-11-20T11:36:49+00:00",
+    "url": "https://www.cac.gov.cn/2026-11/20/c_1796918603542950.htm",
+    "document_type": "规范性政策文件",
+    "applicable_entities": [
+      "未明确"
+    ],
+    "categories": [
+      "AI与大模型"
+    ],
+    "keywords": [
+      "人工智能"
+    ],
+    "relevance_score": 5,
+    "importance": 3,
+    "summary": "促进生成式人工智能服务创新发展和规范应用，网信部门会同有关部门按照《生成式人工智能服务管理暂行办法》要求，持续开展生成式人工智能服务备案工作。2026年9月至10月，新增133款生成式人工智能服务在国家网信办完成备案，其中包括3款提供手机端侧生成式人工智能服务和1款提供拟人化互动生成式人工智能服务。",
+    "impact": "可能影响金融机构大模型、智能客服、智能风控或智能体应用的开发、测试、上线与持续治理。",
+    "analysis_notice": "以上摘要与关注级别由规则自动生成，不代表发布机构观点；请以官方原文为准。"
+  },
+  {
     "id": "032b1390261fcc0ba0",
     "title": "中国人民银行与加拿大财政部、加拿大央行共同签署《中加金融工作组工作规范...",
     "source_id": "pbc_news",
@@ -2313,14 +2338,14 @@
     ]
   },
   {
-    "id": "eab1ebf57aa1b96083",
+    "id": "26d2b93538a7b30ffc",
     "title": "中国人民银行 中国证监会令〔2025〕第7号（金融基础设施监督管理办法）",
     "source_id": "pbc_news",
     "source_name": "中国人民银行",
     "published_at": "2025-08-01",
-    "discovered_at": "2026-11-20T03:12:11+00:00",
-    "updated_at": "2026-11-20T03:12:11+00:00",
-    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/2025120610050660916/index.html",
+    "discovered_at": "2026-11-20T11:36:35+00:00",
+    "updated_at": "2026-11-20T11:36:35+00:00",
+    "url": "https://www.pbc.gov.cn/tiaofasi/144941/144957/b71de79692a649a6863b7ba9c9f681b4/index.html",
     "document_type": "法律法规与部门规章",
     "applicable_entities": [
       "支付清算与金融基础设施"
